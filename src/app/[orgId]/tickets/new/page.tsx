@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getOrgContext } from "@/lib/org-context";
 import { createClient } from "@/lib/supabase/server";
 import { PERMISSIONS } from "@/lib/permissions";
+import { fetchHolidayDates } from "@/lib/holidays";
 import { NewTicketForm } from "./new-ticket-form";
 
 export default async function NewTicketPage({
@@ -16,15 +17,18 @@ export default async function NewTicketPage({
   }
 
   const supabase = await createClient();
-  const { data: templates } = await supabase
-    .from("form_templates")
-    .select(
-      "id, name, form_fields(id, key, label, field_type, is_required, options, sort_order, deleted_at)",
-    )
-    .eq("org_id", orgId)
-    .eq("is_active", true)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: true });
+  const [{ data: templates }, holidays] = await Promise.all([
+    supabase
+      .from("form_templates")
+      .select(
+        "id, name, form_fields(id, key, label, field_type, is_required, options, sort_order, deleted_at)",
+      )
+      .eq("org_id", orgId)
+      .eq("is_active", true)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true }),
+    fetchHolidayDates(supabase),
+  ]);
 
   const preparedTemplates = (templates ?? []).map((t) => ({
     id: t.id,
@@ -56,7 +60,7 @@ export default async function NewTicketPage({
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-bold">تیکت جدید</h1>
-      <NewTicketForm orgId={orgId} templates={preparedTemplates} />
+      <NewTicketForm orgId={orgId} templates={preparedTemplates} holidays={holidays} />
     </div>
   );
 }

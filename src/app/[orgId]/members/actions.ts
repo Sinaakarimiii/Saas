@@ -15,6 +15,7 @@ export async function inviteMember(
     .trim()
     .toLowerCase();
   const roleId = String(formData.get("roleId") ?? "");
+  const managerId = String(formData.get("managerId") ?? "") || null;
 
   if (!email || !roleId) {
     return { error: "ایمیل و نقش را وارد کنید" };
@@ -78,6 +79,7 @@ export async function inviteMember(
     org_id: orgId,
     user_id: targetUserId,
     role_id: roleId,
+    manager_id: managerId,
     invited_by: user.id,
   });
 
@@ -87,6 +89,45 @@ export async function inviteMember(
         memberError.code === "23505"
           ? "این فرد قبلاً عضو این سازمان است"
           : "افزودن عضو انجام نشد",
+    };
+  }
+
+  revalidatePath(`/${orgId}/members`);
+  return { success: true };
+}
+
+export async function updateMember(
+  orgId: string,
+  memberId: string,
+  input: { roleId: string; managerId: string | null },
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "ابتدا وارد شوید" };
+
+  const { data: allowed } = await supabase.rpc("has_permission", {
+    p_org_id: orgId,
+    p_permission_key: PERMISSIONS.MANAGE_MEMBERS,
+  });
+  if (!allowed) return { error: "شما دسترسی مدیریت اعضا را ندارید" };
+
+  if (input.managerId === memberId) {
+    return { error: "عضو نمی‌تواند سرپرست خودش باشد" };
+  }
+
+  const { error } = await supabase
+    .from("org_members")
+    .update({ role_id: input.roleId, manager_id: input.managerId })
+    .eq("id", memberId)
+    .eq("org_id", orgId);
+
+  if (error) {
+    return {
+      error: error.message.includes("حلقه")
+        ? "این تغییر باعث حلقه در زنجیره‌ی سرپرستی می‌شود"
+        : "ویرایش عضو انجام نشد",
     };
   }
 

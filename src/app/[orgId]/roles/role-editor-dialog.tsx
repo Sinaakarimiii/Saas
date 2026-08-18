@@ -23,17 +23,25 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+type Scope = "own" | "all" | "team";
+
+const SCOPE_LABELS: Record<Scope, string> = {
+  own: "فقط خودم",
+  all: "همه",
+  team: "زیرمجموعه‌ی من",
+};
+
 type PermissionCatalogItem = {
   key: string;
   label_fa: string;
-  is_scopable: boolean;
+  scope_options: string[];
 };
 
 type ExistingRole = {
   id: string;
   name: string;
   isSystem: boolean;
-  grants: Record<string, "own" | "all" | null>;
+  grants: Record<string, Scope | null>;
 };
 
 export function RoleEditorDialog({
@@ -49,19 +57,20 @@ export function RoleEditorDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(role?.name ?? "");
-  const [grants, setGrants] = useState<
-    Record<string, { granted: boolean; scope: "own" | "all" | null }>
-  >(() => {
-    const initial: Record<string, { granted: boolean; scope: "own" | "all" | null }> = {};
-    for (const p of permissionsCatalog) {
-      const existingScope = role?.grants[p.key];
-      initial[p.key] = {
-        granted: role ? p.key in role.grants : false,
-        scope: existingScope ?? (p.is_scopable ? "own" : null),
-      };
-    }
-    return initial;
-  });
+  const [grants, setGrants] = useState<Record<string, { granted: boolean; scope: Scope | null }>>(
+    () => {
+      const initial: Record<string, { granted: boolean; scope: Scope | null }> = {};
+      for (const p of permissionsCatalog) {
+        const existingScope = role?.grants[p.key];
+        const isScopable = p.scope_options.length > 0;
+        initial[p.key] = {
+          granted: role ? p.key in role.grants : false,
+          scope: existingScope ?? (isScopable ? (p.scope_options[0] as Scope) : null),
+        };
+      }
+      return initial;
+    },
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -74,17 +83,20 @@ export function RoleEditorDialog({
     }));
   }
 
-  function setScope(key: string, scope: "own" | "all") {
+  function setScope(key: string, scope: Scope) {
     setGrants((prev) => ({ ...prev, [key]: { ...prev[key], scope } }));
   }
 
   function onSubmit() {
     setError(null);
-    const permissions: PermissionInput[] = permissionsCatalog.map((p) => ({
-      key: p.key,
-      granted: grants[p.key]?.granted ?? false,
-      scope: p.is_scopable ? (grants[p.key]?.scope ?? "own") : null,
-    }));
+    const permissions: PermissionInput[] = permissionsCatalog.map((p) => {
+      const isScopable = p.scope_options.length > 0;
+      return {
+        key: p.key,
+        granted: grants[p.key]?.granted ?? false,
+        scope: isScopable ? (grants[p.key]?.scope ?? (p.scope_options[0] as Scope)) : null,
+      };
+    });
 
     startTransition(async () => {
       const result = await saveRole(orgId, role?.id ?? null, name, permissions);
@@ -136,18 +148,21 @@ export function RoleEditorDialog({
                     {p.label_fa}
                   </Label>
                 </div>
-                {p.is_scopable && grants[p.key]?.granted && (
+                {p.scope_options.length > 0 && grants[p.key]?.granted && (
                   <Select
-                    value={grants[p.key]?.scope ?? "own"}
-                    onValueChange={(v) => setScope(p.key, v as "own" | "all")}
+                    value={grants[p.key]?.scope ?? p.scope_options[0]}
+                    onValueChange={(v) => setScope(p.key, v as Scope)}
                     disabled={isSystem}
                   >
-                    <SelectTrigger className="w-32" size="sm">
+                    <SelectTrigger className="w-36" size="sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="own">فقط خودم</SelectItem>
-                      <SelectItem value="all">همه</SelectItem>
+                      {p.scope_options.map((opt) => (
+                        <SelectItem key={opt} value={opt}>
+                          {SCOPE_LABELS[opt as Scope]}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 )}

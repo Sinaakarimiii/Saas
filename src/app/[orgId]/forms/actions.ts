@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PERMISSIONS } from "@/lib/permissions";
+import { FIELD_TYPES, type FieldOptions, type FieldType } from "@/lib/form-fields";
 
 type ActionResult = { error?: string; success?: boolean };
 
@@ -49,16 +50,14 @@ export async function createFormTemplate(orgId: string, formData: FormData) {
   redirect(`/${orgId}/forms/${template.id}`);
 }
 
-const FIELD_TYPES = ["text", "number", "date_jalali", "select", "file"] as const;
-
 export async function addField(
   orgId: string,
   formTemplateId: string,
   input: {
     label: string;
-    fieldType: (typeof FIELD_TYPES)[number];
+    fieldType: FieldType;
     isRequired: boolean;
-    options: string[];
+    options: FieldOptions;
   },
 ): Promise<ActionResult> {
   const check = await assertCanManageForms(orgId);
@@ -69,6 +68,16 @@ export async function addField(
   if (!label) return { error: "برچسب فیلد نمی‌تواند خالی باشد" };
   if (!FIELD_TYPES.includes(input.fieldType)) {
     return { error: "نوع فیلد نامعتبر است" };
+  }
+  if (input.fieldType === "select" && (input.options.choices?.length ?? 0) === 0) {
+    return { error: "حداقل یک گزینه برای فیلد انتخابی وارد کنید" };
+  }
+  if (
+    input.fieldType === "number" &&
+    input.options.numberFormat === "fixed_digits" &&
+    !input.options.digitCount
+  ) {
+    return { error: "تعداد رقم را مشخص کنید" };
   }
 
   const key = label
@@ -90,7 +99,7 @@ export async function addField(
     field_type: input.fieldType,
     is_required: input.isRequired,
     sort_order: count ?? 0,
-    options: input.fieldType === "select" ? input.options : null,
+    options: Object.keys(input.options).length > 0 ? input.options : null,
   });
 
   if (error) {

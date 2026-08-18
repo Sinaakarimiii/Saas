@@ -2,9 +2,46 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import { useSyncExternalStore } from "react";
+import { SunIcon, MoonIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+const noopSubscribe = () => () => {};
+
+// Server always renders "not mounted yet" (getServerSnapshot); the client's
+// first paint matches that, then flips true -- avoids the classic
+// setState-in-effect hydration-guard pattern the lint rule flags.
+function useHasMounted() {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
+}
+
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+  const mounted = useHasMounted();
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="justify-start gap-2"
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+    >
+      {mounted && resolvedTheme === "dark" ? (
+        <SunIcon className="size-4" />
+      ) : (
+        <MoonIcon className="size-4" />
+      )}
+      {mounted && resolvedTheme === "dark" ? "حالت روز" : "حالت شب"}
+    </Button>
+  );
+}
 
 type NavItem = {
   href: string;
@@ -59,6 +96,7 @@ export function OrgSidebar({
         })}
       </nav>
       <div className="mt-auto flex flex-col gap-2">
+        <ThemeToggle />
         <Button asChild variant="ghost" size="sm">
           <Link href="/orgs">تعویض سازمان</Link>
         </Button>

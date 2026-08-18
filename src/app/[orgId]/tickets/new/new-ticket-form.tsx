@@ -2,8 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { createTicketAction } from "../actions";
-import { DynamicFieldInput, type FormFieldDef, type FieldValue } from "../field-input";
-import { uploadTicketFile } from "@/lib/upload-ticket-file";
+import {
+  DynamicFieldInput,
+  isFieldValueEmpty,
+  resolveFieldValueForSubmit,
+  type FormFieldDef,
+  type FieldValue,
+} from "../field-input";
 import type { Json } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,9 +30,11 @@ type FormTemplate = {
 export function NewTicketForm({
   orgId,
   templates,
+  holidays,
 }: {
   orgId: string;
   templates: FormTemplate[];
+  holidays: string[];
 }) {
   const [formTemplateId, setFormTemplateId] = useState(templates[0]?.id ?? "");
   const [title, setTitle] = useState("");
@@ -50,7 +57,7 @@ export function NewTicketForm({
     }
 
     for (const field of activeTemplate.fields) {
-      if (field.is_required && !values[field.id]) {
+      if (field.is_required && isFieldValueEmpty(values[field.id])) {
         setError(`فیلد «${field.label}» اجباری است`);
         return;
       }
@@ -59,14 +66,10 @@ export function NewTicketForm({
     setIsSubmitting(true);
     try {
       const fieldValues: { form_field_id: string; value: Json }[] = await Promise.all(
-        activeTemplate.fields.map(async (field) => {
-          const raw = values[field.id] ?? null;
-          if (field.field_type === "file" && raw instanceof File) {
-            const uploaded = await uploadTicketFile(orgId, field.id, raw);
-            return { form_field_id: field.id, value: uploaded };
-          }
-          return { form_field_id: field.id, value: raw as Json };
-        }),
+        activeTemplate.fields.map(async (field) => ({
+          form_field_id: field.id,
+          value: await resolveFieldValueForSubmit(orgId, field, values[field.id]),
+        })),
       );
 
       const result = await createTicketAction(
@@ -131,6 +134,7 @@ export function NewTicketForm({
             field={field}
             value={values[field.id]}
             onChange={(v) => setValues((prev) => ({ ...prev, [field.id]: v }))}
+            holidays={holidays}
           />
         </div>
       ))}

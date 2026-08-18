@@ -8,7 +8,13 @@ export const PERMISSIONS = {
   TICKET_CREATE: "ticket.create",
   TICKET_VIEW: "ticket.view",
   TICKET_EDIT: "ticket.edit",
+  SHIFT_MANAGE: "shift.manage",
+  LEAVE_REQUEST: "leave.request",
+  LEAVE_APPROVE: "leave.approve",
+  ATTENDANCE_RECORD: "attendance.record",
+  ATTENDANCE_VIEW: "attendance.view",
+  CALENDAR_MANAGE_DAYS: "calendar.manage_days",
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
-export type PermissionScope = "own" | "all";
+export type PermissionScope = "own" | "all" | "team";

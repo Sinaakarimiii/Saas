@@ -7,7 +7,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 export type PermissionInput = {
   key: string;
   granted: boolean;
-  scope: "own" | "all" | null;
+  scope: "own" | "all" | "team" | null;
 };
 
 type ActionResult = { error?: string; success?: boolean };

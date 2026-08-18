@@ -25,9 +25,11 @@ import {
 export function InviteMemberDialog({
   orgId,
   roles,
+  members,
 }: {
   orgId: string;
   roles: { id: string; name: string }[];
+  members: { id: string; label: string }[];
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
@@ -80,6 +82,21 @@ export function InviteMemberDialog({
                 {roles.map((role) => (
                   <SelectItem key={role.id} value={role.id}>
                     {role.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="managerId">سرپرست مستقیم (اختیاری)</Label>
+            <Select name="managerId">
+              <SelectTrigger id="managerId" className="w-full">
+                <SelectValue placeholder="بدون سرپرست" />
+              </SelectTrigger>
+              <SelectContent>
+                {members.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.label}
                   </SelectItem>
                 ))}
               </SelectContent>

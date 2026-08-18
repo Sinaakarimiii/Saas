@@ -2,8 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { updateTicketFieldValueAction } from "../actions";
-import { DynamicFieldInput, type FormFieldDef, type FieldValue } from "../field-input";
-import { uploadTicketFile } from "@/lib/upload-ticket-file";
+import {
+  DynamicFieldInput,
+  resolveFieldValueForSubmit,
+  type FormFieldDef,
+  type FieldValue,
+} from "../field-input";
 import type { Json } from "@/lib/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -23,11 +27,13 @@ export function FieldEditDialog({
   ticketId,
   field,
   currentValue,
+  holidays,
 }: {
   orgId: string;
   ticketId: string;
   field: FormFieldDef;
   currentValue: Json;
+  holidays: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState<FieldValue>(currentValue);
@@ -39,10 +45,7 @@ export function FieldEditDialog({
     setError(null);
     startTransition(async () => {
       try {
-        let finalValue: Json = value as Json;
-        if (field.field_type === "file" && value instanceof File) {
-          finalValue = await uploadTicketFile(orgId, field.id, value);
-        }
+        const finalValue = await resolveFieldValueForSubmit(orgId, field, value);
         const result = await updateTicketFieldValueAction(
           orgId,
           ticketId,
@@ -77,7 +80,7 @@ export function FieldEditDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
-          <DynamicFieldInput field={field} value={value} onChange={setValue} />
+          <DynamicFieldInput field={field} value={value} onChange={setValue} holidays={holidays} />
           <div className="grid gap-2">
             <Label htmlFor="note">توضیح (اختیاری)</Label>
             <Textarea

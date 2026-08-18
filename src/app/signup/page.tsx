@@ -28,6 +28,9 @@ import {
 
 const schema = z.object({
   fullName: z.string().min(2, "نام باید حداقل ۲ حرف باشد"),
+  phone: z
+    .string()
+    .regex(/^(0|\+98|0098)?9\d{9}$/, "شماره موبایل معتبر نیست (مثلاً 09121234567)"),
   email: z.string().email("ایمیل معتبر نیست"),
   password: z.string().min(8, "رمز عبور باید حداقل ۸ کاراکتر باشد"),
 });
@@ -40,7 +43,7 @@ export default function SignupPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { fullName: "", email: "", password: "" },
+    defaultValues: { fullName: "", phone: "", email: "", password: "" },
   });
 
   async function onSubmit(values: FormValues) {
@@ -49,7 +52,7 @@ export default function SignupPage() {
     const { error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
-      options: { data: { full_name: values.fullName } },
+      options: { data: { full_name: values.fullName, phone: values.phone } },
     });
 
     if (error) {
@@ -88,6 +91,24 @@ export default function SignupPage() {
                     <FormLabel>نام و نام‌خانوادگی</FormLabel>
                     <FormControl>
                       <Input placeholder="مثلاً سینا کریمی" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>شماره موبایل</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="tel"
+                        dir="ltr"
+                        placeholder="09121234567"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

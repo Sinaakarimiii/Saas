@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Vazirmatn } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -19,10 +20,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="fa"
       dir="rtl"
       className={`${vazirmatn.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        {children}
-        <Toaster position="top-center" dir="rtl" />
+        <ThemeProvider attribute={["class", "data-theme"]} defaultTheme="system" enableSystem>
+          {children}
+          <Toaster position="top-center" dir="rtl" />
+        </ThemeProvider>
       </body>
     </html>
   );

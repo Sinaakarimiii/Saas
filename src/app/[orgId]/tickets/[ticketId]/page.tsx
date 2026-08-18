@@ -3,6 +3,7 @@ import { getOrgContext } from "@/lib/org-context";
 import { createClient } from "@/lib/supabase/server";
 import { PERMISSIONS } from "@/lib/permissions";
 import { formatJalaliDateTime } from "@/lib/jalali";
+import { fetchHolidayDates } from "@/lib/holidays";
 import { Badge } from "@/components/ui/badge";
 import {
   Tabs,
@@ -17,6 +18,11 @@ import type { Json } from "@/lib/supabase/types";
 
 function displayValue(fieldType: string, value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
+  if (fieldType === "boolean") return value === true ? "بله" : "خیر";
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "—";
+    return value.map((v) => displayValue(fieldType, v)).join("، ");
+  }
   if (fieldType === "file" && typeof value === "object") {
     const v = value as { file_name?: string };
     return v.file_name ?? "فایل";
@@ -46,7 +52,7 @@ export default async function TicketDetailPage({
     notFound();
   }
 
-  const [{ data: fields }, { data: fieldValues }, { data: auditEntries }] =
+  const [{ data: fields }, { data: fieldValues }, { data: auditEntries }, holidays] =
     await Promise.all([
       supabase
         .from("form_fields")
@@ -63,6 +69,7 @@ export default async function TicketDetailPage({
         .select("id, acted_at, actor_id, field_name, old_value, new_value, note, action")
         .eq("record_id", ticket.id)
         .order("acted_at", { ascending: true }),
+      fetchHolidayDates(supabase),
     ]);
 
   const valueByFieldId = new Map<string, Json>(
@@ -72,19 +79,30 @@ export default async function TicketDetailPage({
   const fileFieldIds = (fields ?? [])
     .filter((f) => f.field_type === "file")
     .map((f) => f.id);
-  const signedUrlByFieldId = new Map<string, string>();
+  // A repeatable file field stores an array of {storage_path,...} instead of
+  // one -- normalize both shapes to a list of signed links per field.
+  const signedFilesByFieldId = new Map<string, { url: string; fileName: string }[]>();
   await Promise.all(
     fileFieldIds.map(async (fieldId) => {
-      const value = valueByFieldId.get(fieldId) as
-        | { storage_path?: string }
-        | undefined;
-      if (!value?.storage_path) return;
-      const { data } = await supabase.storage
-        .from("ticket-attachments")
-        .createSignedUrl(value.storage_path, 3600);
-      if (data?.signedUrl) {
-        signedUrlByFieldId.set(fieldId, data.signedUrl);
-      }
+      const raw = valueByFieldId.get(fieldId);
+      const entries = (Array.isArray(raw) ? raw : raw ? [raw] : []) as {
+        storage_path?: string;
+        file_name?: string;
+      }[];
+      const links = (
+        await Promise.all(
+          entries.map(async (entry) => {
+            if (!entry.storage_path) return null;
+            const { data } = await supabase.storage
+              .from("ticket-attachments")
+              .createSignedUrl(entry.storage_path, 3600);
+            return data?.signedUrl
+              ? { url: data.signedUrl, fileName: entry.file_name ?? "فایل" }
+              : null;
+          }),
+        )
+      ).filter((l): l is { url: string; fileName: string } => l !== null);
+      if (links.length > 0) signedFilesByFieldId.set(fieldId, links);
     }),
   );
 
@@ -140,15 +158,20 @@ export default async function TicketDetailPage({
             >
               <div>
                 <p className="text-muted-foreground text-xs">{field.label}</p>
-                {field.field_type === "file" && signedUrlByFieldId.has(field.id) ? (
-                  <a
-                    href={signedUrlByFieldId.get(field.id)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary underline"
-                  >
-                    {displayValue(field.field_type, valueByFieldId.get(field.id))}
-                  </a>
+                {field.field_type === "file" && signedFilesByFieldId.has(field.id) ? (
+                  <div className="flex flex-col gap-1">
+                    {signedFilesByFieldId.get(field.id)!.map((f, i) => (
+                      <a
+                        key={i}
+                        href={f.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary underline"
+                      >
+                        {f.fileName}
+                      </a>
+                    ))}
+                  </div>
                 ) : (
                   <p>
                     {displayValue(field.field_type, valueByFieldId.get(field.id))}
@@ -161,6 +184,7 @@ export default async function TicketDetailPage({
                   ticketId={ticket.id}
                   field={field as FormFieldDef}
                   currentValue={valueByFieldId.get(field.id) ?? null}
+                  holidays={holidays}
                 />
               )}
             </div>

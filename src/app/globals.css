@@ -4,6 +4,106 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Glass v2 design-system tokens (design doc §2).
+ * Additive only — not consumed by any component yet (step 1 of the Glass
+ * skin rollout). Color tokens activate only where a `data-theme="light"` or
+ * `data-theme="dark"` attribute is set on an ancestor; nothing sets that
+ * attribute yet (the toggle is deferred to a later session), so these are
+ * currently dormant and have zero effect on the existing app.
+ * Radius/blur/saturate/hairline are namespaced under `--glass-*` so they
+ * cannot collide with Tailwind's existing `--radius*` scale used app-wide.
+ */
+:root[data-theme="light"] {
+  --bg-gradient: radial-gradient(120% 120% at 15% 0%, #eef4ff 0%, #f5f0ff 45%, #fef7f0 100%);
+  --glass: rgba(255, 255, 255, 0.55);
+  --glass-strong: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.65);
+  --glass-shadow: 0 8px 32px rgba(31, 41, 55, 0.10);
+
+  --text: #1d1d1f;
+  --text-muted: #6e6e73;
+  --text-dim: #86868b;
+
+  /* accent/error/success/neutral darkened from the doc's literal hex (step 6
+     contrast audit): text-on-soft-fill combos failed WCAG 4.5:1 at the
+     literal values. --accent-deep is unchanged (already passed). */
+  --accent: #0064d1;
+  --accent-deep: #0060df;
+  --accent-glow: rgba(0, 122, 255, 0.18);
+  --accent-soft: rgba(0, 100, 209, 0.10);
+
+  --success: #18752f;
+  --success-soft: rgba(24, 117, 47, 0.12);
+  --warning: #ff9500;
+  --warning-soft: rgba(255, 149, 0, 0.12);
+  --error: #c80b00;
+  --error-soft: rgba(200, 11, 0, 0.12);
+  --info: #32ade6;
+  --info-soft: rgba(50, 173, 230, 0.12);
+  --violet: #af52de;
+  --violet-soft: rgba(175, 82, 222, 0.12);
+  --neutral: #68686e;
+  --neutral-soft: rgba(104, 104, 110, 0.12);
+
+  /* Button-primary needs white text on a solid fill — a different contrast
+     requirement than --accent's use as *text* on --accent-soft elsewhere
+     (Badge). Light mode: the badge-safe --accent above already clears white
+     text too, so these just mirror it. */
+  --btn-accent-from: #0064d1;
+  --btn-accent-to: #0060df;
+}
+
+:root[data-theme="dark"] {
+  --bg-gradient: radial-gradient(120% 120% at 15% 0%, #171826 0%, #0f1420 45%, #1a1122 100%);
+  --glass: rgba(30, 30, 34, 0.55);
+  --glass-strong: rgba(44, 44, 48, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+
+  --text: #f5f5f7;
+  --text-muted: #a1a1a6;
+  --text-dim: #6e6e73;
+
+  /* accent/error lightened from the doc's literal hex (step 6 contrast
+     audit): text-on-soft-fill failed WCAG 4.5:1 at the literal dark-mode
+     values. success/neutral already passed, unchanged. */
+  --accent: #2290ff;
+  --accent-deep: #409cff;
+  --accent-glow: rgba(10, 132, 255, 0.22);
+  --accent-soft: rgba(34, 144, 255, 0.12);
+
+  --success: #30d158;
+  --success-soft: rgba(48, 209, 88, 0.14);
+  --warning: #ff9f0a;
+  --warning-soft: rgba(255, 159, 10, 0.14);
+  --error: #ff544a;
+  --error-soft: rgba(255, 84, 74, 0.14);
+  --info: #64d2ff;
+  --info-soft: rgba(100, 210, 255, 0.14);
+  --violet: #bf5af2;
+  --violet-soft: rgba(191, 90, 242, 0.14);
+  --neutral: #98989d;
+  --neutral-soft: rgba(152, 152, 157, 0.14);
+
+  /* Button-primary dark mode: white text needs a darker fill than the
+     badge-safe (lighter) --accent above provides — see the light-mode
+     comment for why these can't share one token. Darkened independently
+     from the doc's original dark accent (#0a84ff / #409cff). */
+  --btn-accent-from: #0071e4;
+  --btn-accent-to: #0072ec;
+}
+
+:root {
+  --glass-blur: 20px;
+  --glass-saturate: 180%;
+  --glass-radius-sm: 10px;
+  --glass-radius: 14px;
+  --glass-radius-lg: 20px;
+  --glass-radius-xl: 28px;
+  --glass-hairline: 0.5px solid var(--glass-border);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -122,8 +222,35 @@
   }
   body {
     @apply bg-background text-foreground;
+    color: var(--text, var(--foreground));
+    position: relative;
+  }
+  /* Soft multi-color "mesh" backdrop (design doc §2: gradient page
+     background, macOS-style) — fixed behind all content, built from the
+     same semantic tokens as the rest of the Glass skin so it stays
+     theme-correct automatically. Low-opacity + heavy blur keeps it subtle. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: -10%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(38% 32% at 12% 18%, color-mix(in oklch, var(--accent) 48%, transparent), transparent 70%),
+      radial-gradient(34% 30% at 88% 12%, color-mix(in oklch, var(--violet) 44%, transparent), transparent 70%),
+      radial-gradient(40% 34% at 82% 88%, color-mix(in oklch, var(--warning) 38%, transparent), transparent 70%),
+      radial-gradient(36% 32% at 8% 85%, color-mix(in oklch, var(--info) 38%, transparent), transparent 70%);
+    filter: blur(90px) saturate(130%);
   }
   html {
     @apply font-sans;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

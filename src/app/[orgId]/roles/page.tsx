@@ -35,15 +35,15 @@ export default async function RolesPage({
         .order("created_at", { ascending: true }),
       supabase
         .from("permissions")
-        .select("key, label_fa, is_scopable")
+        .select("key, label_fa, scope_options")
         .order("key", { ascending: true }),
       supabase.from("role_permissions").select("role_id, permission_key, scope"),
     ]);
 
-  const grantsByRole = new Map<string, Record<string, "own" | "all" | null>>();
+  const grantsByRole = new Map<string, Record<string, "own" | "all" | "team" | null>>();
   for (const rp of rolePermissions ?? []) {
     const map = grantsByRole.get(rp.role_id) ?? {};
-    map[rp.permission_key] = rp.scope as "own" | "all" | null;
+    map[rp.permission_key] = rp.scope as "own" | "all" | "team" | null;
     grantsByRole.set(rp.role_id, map);
   }
 

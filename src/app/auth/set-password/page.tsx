@@ -27,6 +27,10 @@ import {
 
 const schema = z
   .object({
+    fullName: z.string().min(2, "نام باید حداقل ۲ حرف باشد"),
+    phone: z
+      .string()
+      .regex(/^(0|\+98|0098)?9\d{9}$/, "شماره موبایل معتبر نیست (مثلاً 09121234567)"),
     password: z.string().min(8, "رمز عبور باید حداقل ۸ کاراکتر باشد"),
     confirmPassword: z.string(),
   })
@@ -121,19 +125,29 @@ export default function SetPasswordPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { password: "", confirmPassword: "" },
+    defaultValues: { fullName: "", phone: "", password: "", confirmPassword: "" },
   });
 
   async function onSubmit(values: FormValues) {
     setServerError(null);
     const supabase = createClient();
-    const { error } = await supabase.auth.updateUser({
+    const { data, error } = await supabase.auth.updateUser({
       password: values.password,
     });
 
     if (error) {
       setServerError("تعیین رمز عبور انجام نشد. دوباره تلاش کنید.");
       return;
+    }
+
+    // The invite flow only ever collects an email -- this is the first
+    // chance to get the invited person's own name/phone into their
+    // profile.
+    if (data.user) {
+      await supabase
+        .from("profiles")
+        .update({ full_name: values.fullName, phone: values.phone })
+        .eq("id", data.user.id);
     }
 
     router.push("/orgs");
@@ -167,6 +181,37 @@ export default function SetPasswordPage() {
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="grid gap-4"
               >
+                <FormField
+                  control={form.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>نام و نام‌خانوادگی</FormLabel>
+                      <FormControl>
+                        <Input placeholder="مثلاً سینا کریمی" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>شماره موبایل</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="tel"
+                          dir="ltr"
+                          placeholder="09121234567"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="password"

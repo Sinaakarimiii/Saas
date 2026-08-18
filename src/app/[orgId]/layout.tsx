@@ -12,6 +12,16 @@ export default async function OrgLayout({
   const navItems = [
     { href: "/dashboard", label: "خانه" },
     { href: "/tickets", label: "تیکت‌ها" },
+    { href: "/calendar", label: "تقویم" },
+    ...(ctx.can(PERMISSIONS.SHIFT_MANAGE)
+      ? [{ href: "/shifts", label: "شیفت‌ها" }]
+      : []),
+    ...(ctx.can(PERMISSIONS.LEAVE_REQUEST) || ctx.can(PERMISSIONS.LEAVE_APPROVE)
+      ? [{ href: "/leave", label: "مرخصی" }]
+      : []),
+    ...(ctx.can(PERMISSIONS.ATTENDANCE_RECORD) || ctx.can(PERMISSIONS.ATTENDANCE_VIEW)
+      ? [{ href: "/attendance", label: "حضور و غیاب" }]
+      : []),
     ...(ctx.can(PERMISSIONS.MANAGE_FORMS)
       ? [{ href: "/forms", label: "فرم‌ها" }]
       : []),
