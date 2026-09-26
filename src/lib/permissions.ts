@@ -46,6 +46,8 @@ export const PERMISSIONS = {
   REPAIR_REPLACEMENT_APPROVE: "repair.replacement.approve",
   REPAIR_REPLACEMENT_STOCK_RECEIVE: "replacement.stock.receive",
   REPAIR_REPLACEMENT_STOCK_ALLOCATE: "replacement.stock.allocate",
+  REPAIR_REPLACEMENT_EXECUTE: "repair.replacement.execute",
+  REPAIR_TRANSITION_TO_TEST_FROM_REPLACEMENT: "case.transition.T07",
   REPAIR_RETURN_AUTHORIZE: "repair.return.authorize",
   REPAIR_RETURN_QC_RECORD: "repair.return_qc.record",
   REPAIR_QUALITY_RELEASE: "repair.quality.release",

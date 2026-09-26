@@ -23,6 +23,7 @@ import { QuarantinePanel } from "./quarantine-panel";
 import { CustodyPanel } from "./custody-panel";
 import { ReplacementStockPanel } from "./replacement-stock-panel";
 import { ReplacementCustodyPanel } from "./replacement-custody-panel";
+import { ReplacementExecutionPanel } from "./replacement-execution-panel";
 import { DeliveryReceipt } from "./delivery-receipt";
 import { DeliveryShipment } from "./delivery-shipment";
 import { DeliveryIncidentPanel } from "./delivery-incident-panel";
@@ -130,7 +131,7 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
   ]);
   if (planError) throw new Error("Could not load repair action plan", { cause: planError });
   const paidPlanVisible = latestPlan?.financial_basis === "customer_paid"
-    && ["decision", "repair", "test", "delivery"].includes(repair.stage);
+    && ["decision", "repair", "replacement", "test", "delivery"].includes(repair.stage);
   const [{ data: paymentEvidence, error: paymentError }, { data: paymentVerifications, error: verificationError }, { data: paymentCorrections, error: correctionError }] = paidPlanVisible
     ? await Promise.all([
       supabase.from("repair_payment_evidence")
@@ -495,6 +496,16 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
         canReturn={ctx.can(PERMISSIONS.REPAIR_CUSTODY_RETURN)}
         canRecordDiscrepancy={ctx.can(PERMISSIONS.REPAIR_CUSTODY_DISCREPANCY_RECORD)}
         canResolveDiscrepancy={ctx.can(PERMISSIONS.REPAIR_CUSTODY_DISCREPANCY_RESOLVE)} />}
+      {repair.stage === "replacement" && latestPlan?.route === "replacement" && <ReplacementExecutionPanel
+        orgId={orgId} caseId={caseId} expectedVersion={repair.version}
+        allocatedImei={allocatedReplacement?.repair_devices?.imei ?? null}
+        originalBaselineReady={custodyPosition?.case_id === caseId && custodyPosition.holder_kind === "staff"}
+        canExecute={ctx.can(PERMISSIONS.REPAIR_REPLACEMENT_EXECUTE)
+          && ctx.can(PERMISSIONS.REPAIR_TRANSITION_TO_TEST_FROM_REPLACEMENT)}
+        custodyBlocked={Boolean((custodyTransfers ?? []).some((item) => item.status === "in_transit")
+          || (custodyDiscrepancies ?? []).some((item) => item.status === "open")
+          || (replacementTransfers ?? []).some((item) => item.status === "in_transit")
+          || (replacementDiscrepancies ?? []).some((item) => item.status === "open"))} />}
       {["repair", "test", "delivery"].includes(repair.stage) && needsParts && (partMovements ?? []).some((item) => item.kind === "return_quarantine") && <QuarantinePanel
         orgId={orgId} caseId={caseId} expectedVersion={repair.version}
         parts={parts} returns={(partMovements ?? []).filter((item) => item.kind === "return_quarantine")}

@@ -59,6 +59,31 @@ const repairCompletionSchema = z.object({
     ctx.addIssue({ code: "custom", message: "شرح اقدام و مرجع آن باید با هم ثبت شوند." });
 });
 
+const replacementExecutionSchema = z.object({
+  orgId: uuid, caseId: uuid, expectedVersion: z.number().int().positive(), idempotencyKey: uuid,
+  executionReference: z.string().trim().min(1).max(160),
+  evidenceReference: z.string().trim().min(1).max(500),
+});
+
+export async function executeRepairReplacementForTestAction(raw: unknown): Promise<ActionResult> {
+  const parsed = replacementExecutionSchema.safeParse(raw);
+  if (!parsed.success) return { error: "مرجع اجرا و شاهد تعویض را کامل کنید." };
+  const input = parsed.data;
+  const supabase = await authorized(input.orgId, PERMISSIONS.REPAIR_REPLACEMENT_EXECUTE);
+  if (!supabase) return { error: "مجوز اجرای تعویض را ندارید." };
+  const { data, error } = await supabase.rpc("execute_repair_replacement_for_test", {
+    p_org_id: input.orgId, p_case_id: input.caseId, p_expected_version: input.expectedVersion,
+    p_idempotency_key: input.idempotencyKey, p_execution_reference: input.executionReference,
+    p_evidence_reference: input.evidenceReference,
+  });
+  if (error) return { error: mapDatabaseError(error.message) };
+  if (!data || typeof data !== "object" || Array.isArray(data) || typeof data.caseId !== "string")
+    return { error: "پاسخ ثبت تعویض معتبر نبود. وضعیت پرونده را تازه کنید." };
+  revalidatePath(`/${input.orgId}/repairs`);
+  revalidatePath(`/${input.orgId}/repairs/${input.caseId}`);
+  return { caseId: data.caseId };
+}
+
 export async function completeRepairForTestAction(raw: unknown): Promise<ActionResult> {
   const parsed = repairCompletionSchema.safeParse(raw);
   if (!parsed.success) return { error: "پروتکل و اطلاعات اقدام تعمیر را بررسی کنید." };
@@ -409,7 +434,8 @@ function mapDatabaseError(message: string): string {
   if (message.includes("REPLACEMENT_STOCK_NOT_ORIGINAL")) return "این دستگاه در موجودی جایگزین ثبت شده و نمی‌تواند دستگاه اصلی پرونده باشد.";
   if (message.includes("REPLACEMENT_STOCK_UNAVAILABLE")) return "دستگاه جایگزین دیگر آزاد نیست یا مدل آن با برنامه یکسان نیست.";
   if (message.includes("REPLACEMENT_ALREADY_ALLOCATED")) return "برای این پرونده دستگاه جایگزین تخصیص داده شده است.";
-  if (message.includes("REPLACEMENT_STAGE_REQUIRED")) return "تخصیص دستگاه فقط در مرحلهٔ تعویض مجاز است.";
+  if (message.includes("REPLACEMENT_EXECUTION_REQUIRED")) return "اجرای واقعی تعویض دستگاه مشخص هنوز ثبت نشده است.";
+  if (message.includes("REPLACEMENT_STAGE_REQUIRED")) return "تخصیص یا اجرای تعویض فقط در مرحلهٔ تعویض مجاز است.";
   if (message.includes("INVALID_REPLACEMENT_")) return "شناسه، مدل، محل، نگهدارنده یا مرجع را بررسی کنید.";
   if (message.includes("PARTS_READINESS_REQUIRED")) return "تعمیر نیازمند قطعه تا ثبت کنترل تأمین و موجودی قابل ارجاع نیست.";
   if (message.includes("PART_WORK_INCOMPLETE")) return "همهٔ قطعات برنامه باید مصرف شده و رزروهای باز بسته شوند.";
@@ -418,7 +444,7 @@ function mapDatabaseError(message: string): string {
   if (message.includes("INVALID_FUNCTIONAL_TEST")) return "برای هر چهار کنترل تست، نتیجه و شاهد معتبر ثبت کنید.";
   if (message.includes("FUNCTIONAL_TEST_NOT_RELEASABLE")) return "فقط آخرین تست موفقِ همین دستگاه، برنامه و نوبت بدون آسیب تازه قابل آزادسازی است.";
   if (message.includes("INVALID_REPAIR_COMPLETION")) return "پروتکل، شرح اقدام و مرجع تعمیر را بررسی کنید.";
-  if (message.includes("DEVICE_CUSTODY_UNRESOLVED")) return "انتقال یا مغایرت باز دستگاه را پیش از تکمیل تعمیر تعیین تکلیف کنید.";
+  if (message.includes("DEVICE_CUSTODY_UNRESOLVED")) return "موقعیت فیزیکی هر دستگاه را تأیید و انتقال یا مغایرت باز را تعیین تکلیف کنید.";
   if (message.includes("PART_STOCK_INSUFFICIENT")) return "موجودی آزاد این قطعه برای رزرو کافی نیست.";
   if (message.includes("PART_REQUIREMENT_REQUIRED")) return "ابتدا نیاز این قطعه را در برنامه ثبت کنید.";
   if (message.includes("PART_RESERVATION_INSUFFICIENT")) return "ماندهٔ رزرو این قطعه برای مصرف کافی نیست یا قبلاً آزاد شده است.";

@@ -3324,6 +3324,17 @@ export type Database = {
         }
         Returns: Json
       }
+      execute_repair_replacement_for_test: {
+        Args: {
+          p_case_id: string
+          p_evidence_reference: string
+          p_execution_reference: string
+          p_expected_version: number
+          p_idempotency_key: string
+          p_org_id: string
+        }
+        Returns: Json
+      }
       confirm_repair_delivery_receipt: {
         Args: {
           p_authority_reference: string | null
