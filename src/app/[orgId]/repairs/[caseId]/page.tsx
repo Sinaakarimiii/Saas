@@ -20,6 +20,7 @@ import { RepairFunctionalTest } from "./repair-functional-test";
 import { RepairOutgoingCheck } from "./repair-outgoing-check";
 import { RepairPaymentPanel } from "./repair-payment-panel";
 import { RepairCreditTransferPanel } from "./repair-credit-transfer-panel";
+import { RepairRefundPanel } from "./repair-refund-panel";
 import { QuarantinePanel } from "./quarantine-panel";
 import { CustodyPanel } from "./custody-panel";
 import { ReplacementStockPanel } from "./replacement-stock-panel";
@@ -53,6 +54,7 @@ const eventNames: Record<string, string> = {
   payment_recorded: "سند پرداخت ثبت شد", payment_verified: "سند پرداخت تطبیق شد",
   payment_corrected: "سند پرداخت اشتباه اصلاح شد",
   payment_credit_requested: "درخواست انتقال اعتبار ثبت شد", payment_credit_approved: "انتقال اعتبار تأیید شد",
+  payment_refund_requested: "درخواست استرداد وجه ثبت شد", payment_refund_approved: "خروج وجه و استرداد تأیید شد",
   assignment_requested: "درخواست واگذاری مسئولیت ثبت شد", assignment_accepted: "واگذاری مسئولیت پذیرفته شد",
   assignment_rejected: "درخواست واگذاری رد شد", assignment_withdrawn: "درخواست واگذاری پس گرفته شد",
   part_required: "نیاز قطعه ثبت شد", part_reserved: "قطعه رزرو شد",
@@ -158,6 +160,26 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
         .eq("org_id", orgId).eq("case_id", caseId).order("requested_at", { ascending: false }),
     ]) : [{ data: [], error: null }, { data: [], error: null }];
   if (oldPaymentError || creditTransferError) throw new Error("Could not load repair credit transfers", { cause: oldPaymentError ?? creditTransferError });
+  const paymentHistoryVisible = ["decision", "repair", "replacement", "test", "delivery", "closed"].includes(repair.stage);
+  const [{ data: allPayments, error: allPaymentsError }, { data: allVerifications, error: allVerificationsError },
+    { data: allCorrections, error: allCorrectionsError }, { data: allTransfers, error: allTransfersError },
+    { data: refunds, error: refundsError }] = paymentHistoryVisible
+    ? await Promise.all([
+      supabase.from("repair_payment_evidence").select("id, plan_id, amount_irr, external_reference")
+        .eq("org_id", orgId).eq("case_id", caseId),
+      supabase.from("repair_payment_verifications").select("payment_id")
+        .eq("org_id", orgId).eq("case_id", caseId),
+      supabase.from("repair_payment_corrections").select("payment_id")
+        .eq("org_id", orgId).eq("case_id", caseId),
+      supabase.from("repair_payment_credit_transfers").select("source_payment_id, amount_irr, approved_at")
+        .eq("org_id", orgId).eq("case_id", caseId),
+      supabase.from("repair_payment_refunds")
+        .select("id, source_payment_id, amount_irr, reason, request_reference, requested_by, requested_at, outbound_method, outbound_reference, outbound_evidence, approval_reference, approved_by, approved_at")
+        .eq("org_id", orgId).eq("case_id", caseId).order("requested_at", { ascending: false }),
+    ]) : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null },
+      { data: [], error: null }, { data: [], error: null }];
+  if (allPaymentsError || allVerificationsError || allCorrectionsError || allTransfersError || refundsError)
+    throw new Error("Could not load repair refund history", { cause: allPaymentsError ?? allVerificationsError ?? allCorrectionsError ?? allTransfersError ?? refundsError });
   const { data: planApprovals, error: approvalsError } = latestPlan
     ? await supabase.from("repair_plan_approvals").select("id, kind, decision, recorded_at")
       .eq("org_id", orgId).eq("case_id", caseId).eq("plan_id", latestPlan.id)
@@ -339,7 +361,8 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
   const correctedPaymentIds = new Set((paymentCorrections ?? []).map((item) => item.payment_id));
   const verifiedAmount = (paymentEvidence ?? []).reduce((sum, item) =>
     sum + (verifiedPaymentIds.has(item.id) && !correctedPaymentIds.has(item.id) ? item.amount_irr : 0), 0)
-    + (creditTransfers ?? []).reduce((sum, transfer) => sum + (transfer.target_plan_id === latestPlan?.id && transfer.approved_at ? transfer.amount_irr : 0), 0);
+    + (creditTransfers ?? []).reduce((sum, transfer) => sum + (transfer.target_plan_id === latestPlan?.id && transfer.approved_at ? transfer.amount_irr : 0), 0)
+    - (refunds ?? []).reduce((sum, refund) => sum + (refund.approved_at && (paymentEvidence ?? []).some((payment) => payment.id === refund.source_payment_id) ? refund.amount_irr : 0), 0);
   const repairFinanceReady = Boolean(latestPlan && (latestPlan.financial_basis === "warranty" && latestPlan.amount_irr === 0
     || latestPlan.financial_basis === "customer_paid" && verifiedAmount === latestPlan.amount_irr));
   const repairCheckMatchesStage = repair.stage === "test"
@@ -472,6 +495,8 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
         orgId={orgId} caseId={caseId} expectedVersion={repair.version} planAmount={latestPlan.amount_irr}
         payments={paymentEvidence ?? []} verifications={paymentVerifications ?? []} corrections={paymentCorrections ?? []}
         approvedCreditAmount={(creditTransfers ?? []).reduce((sum, transfer) => sum + (transfer.target_plan_id === latestPlan.id && transfer.approved_at ? transfer.amount_irr : 0), 0)}
+        approvedRefundAmount={(refunds ?? []).reduce((sum, refund) => sum + (refund.approved_at && (paymentEvidence ?? []).some((payment) => payment.id === refund.source_payment_id) ? refund.amount_irr : 0), 0)}
+        refundedPaymentIds={(refunds ?? []).filter((refund) => refund.approved_at).map((refund) => refund.source_payment_id)}
         canRecord={repair.stage !== "delivery" && ctx.can(PERMISSIONS.REPAIR_PAYMENT_RECORD)}
         canVerify={repair.stage !== "delivery" && ctx.can(PERMISSIONS.REPAIR_PAYMENT_VERIFY)}
         canCorrect={repair.stage !== "delivery" && ctx.can(PERMISSIONS.REPAIR_PAYMENT_CORRECT)} />}
@@ -479,9 +504,15 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
         orgId={orgId} caseId={caseId} currentUserId={ctx.user.id} expectedVersion={repair.version}
         planId={latestPlan.id} planAmount={latestPlan.amount_irr}
         oldPayments={oldPaymentEvidence ?? []} verifications={paymentVerifications ?? []}
-        corrections={paymentCorrections ?? []} transfers={creditTransfers ?? []}
+        corrections={paymentCorrections ?? []} transfers={creditTransfers ?? []} refunds={refunds ?? []}
         canRequest={ctx.can(PERMISSIONS.REPAIR_PAYMENT_CREDIT_REQUEST)}
         canApprove={ctx.can(PERMISSIONS.REPAIR_PAYMENT_CREDIT_APPROVE)} />}
+      {paymentHistoryVisible && <RepairRefundPanel orgId={orgId} caseId={caseId}
+        currentUserId={ctx.user.id} expectedVersion={repair.version} payments={allPayments ?? []}
+        verifications={allVerifications ?? []} corrections={allCorrections ?? []}
+        transfers={allTransfers ?? []} refunds={refunds ?? []}
+        canRequest={ctx.can(PERMISSIONS.REPAIR_PAYMENT_REFUND_REQUEST)}
+        canApprove={ctx.can(PERMISSIONS.REPAIR_PAYMENT_REFUND_APPROVE)} />}
       {repair.stage === "decision" && needsParts && latestPlan && <PartsPanel
         key={latestPlan.id} orgId={orgId} caseId={caseId} planId={latestPlan.id}
         expectedVersion={repair.version} parts={parts} requirements={requirements}

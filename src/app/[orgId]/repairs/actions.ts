@@ -197,6 +197,55 @@ const creditApprovalSchema = z.object({
   orgId: uuid, caseId: uuid, transferId: uuid, expectedVersion: z.number().int().positive(), idempotencyKey: uuid,
   approvalReference: z.string().trim().min(1).max(160),
 });
+const refundRequestSchema = z.object({
+  orgId: uuid, caseId: uuid, sourcePaymentId: uuid, expectedVersion: z.number().int().positive(), idempotencyKey: uuid,
+  amountIrr: z.number().int().positive().safe(), reason: z.string().trim().min(5).max(1000),
+  requestReference: z.string().trim().min(1).max(160),
+});
+const refundApprovalSchema = z.object({
+  orgId: uuid, caseId: uuid, refundId: uuid, expectedVersion: z.number().int().positive(), idempotencyKey: uuid,
+  outboundMethod: z.enum(["bank_transfer", "card_reversal", "cash"]),
+  outboundReference: z.string().trim().min(1).max(160),
+  outboundEvidence: z.string().trim().min(1).max(500),
+  approvalReference: z.string().trim().min(1).max(160),
+});
+
+export async function requestRepairPaymentRefundAction(raw: unknown): Promise<ActionResult> {
+  const parsed = refundRequestSchema.safeParse(raw);
+  if (!parsed.success) return { error: "مبلغ، علت و مرجع درخواست استرداد را بررسی کنید." };
+  const input = parsed.data;
+  const supabase = await authorized(input.orgId, PERMISSIONS.REPAIR_PAYMENT_REFUND_REQUEST);
+  if (!supabase) return { error: "مجوز درخواست استرداد وجه را ندارید." };
+  const { data, error } = await supabase.rpc("request_repair_payment_refund", {
+    p_org_id: input.orgId, p_case_id: input.caseId, p_source_payment_id: input.sourcePaymentId,
+    p_expected_version: input.expectedVersion, p_idempotency_key: input.idempotencyKey,
+    p_amount_irr: input.amountIrr, p_reason: input.reason, p_request_reference: input.requestReference,
+  });
+  if (error) return { error: mapDatabaseError(error.message) };
+  if (!data || typeof data !== "object" || Array.isArray(data) || typeof data.caseId !== "string")
+    return { error: "پاسخ درخواست استرداد معتبر نبود. پرونده را تازه کنید." };
+  revalidatePath(`/${input.orgId}/repairs/${input.caseId}`);
+  return { caseId: data.caseId };
+}
+
+export async function approveRepairPaymentRefundAction(raw: unknown): Promise<ActionResult> {
+  const parsed = refundApprovalSchema.safeParse(raw);
+  if (!parsed.success) return { error: "روش خروج وجه، رسید و مرجع تأیید را بررسی کنید." };
+  const input = parsed.data;
+  const supabase = await authorized(input.orgId, PERMISSIONS.REPAIR_PAYMENT_REFUND_APPROVE);
+  if (!supabase) return { error: "مجوز تأیید استرداد وجه را ندارید." };
+  const { data, error } = await supabase.rpc("approve_repair_payment_refund", {
+    p_org_id: input.orgId, p_case_id: input.caseId, p_refund_id: input.refundId,
+    p_expected_version: input.expectedVersion, p_idempotency_key: input.idempotencyKey,
+    p_outbound_method: input.outboundMethod, p_outbound_reference: input.outboundReference,
+    p_outbound_evidence: input.outboundEvidence, p_approval_reference: input.approvalReference,
+  });
+  if (error) return { error: mapDatabaseError(error.message) };
+  if (!data || typeof data !== "object" || Array.isArray(data) || typeof data.caseId !== "string")
+    return { error: "پاسخ تأیید استرداد معتبر نبود. پرونده را تازه کنید." };
+  revalidatePath(`/${input.orgId}/repairs/${input.caseId}`);
+  return { caseId: data.caseId };
+}
 
 export async function requestRepairPaymentCreditTransferAction(raw: unknown): Promise<ActionResult> {
   const parsed = creditRequestSchema.safeParse(raw);
@@ -452,6 +501,12 @@ function mapDatabaseError(message: string): string {
   if (message.includes("INVALID_REPAIR_OUTGOING_CHECK")) return "نتیجه‌ها، شواهد و اطلاعات گیرنده را بررسی کنید.";
   if (message.includes("PAYMENT_EXCEEDS_PLAN")) return "جمع پرداخت‌های تطبیق‌شده از مبلغ برنامه بیشتر می‌شود.";
   if (message.includes("PAYMENT_HAS_CREDIT_TRANSFER")) return "این رسید به برنامهٔ جدید منتقل شده و دیگر قابل اصلاح سند نیست.";
+  if (message.includes("PAYMENT_HAS_REFUND")) return "از این رسید وجه مسترد شده و دیگر قابل اصلاح سند نیست.";
+  if (message.includes("REFUND_EXCEEDS_AVAILABLE")) return "مبلغ استرداد از ماندهٔ آزاد رسید بیشتر است.";
+  if (message.includes("REFUND_SOURCE_NOT_ELIGIBLE")) return "برای استرداد، رسید باید تطبیق‌شده و اصلاح‌نشده باشد.";
+  if (message.includes("REFUND_APPROVAL_NOT_ALLOWED")) return "تأیید استرداد باید توسط فرد دیگری و برای رسید معتبر انجام شود.";
+  if (message.includes("PENDING_REFUND_REQUIRED")) return "درخواست استرداد دیگر در انتظار تأیید نیست.";
+  if (message.includes("INVALID_REFUND_")) return "مبلغ، علت، رسید خروج وجه و مراجع استرداد را بررسی کنید.";
   if (message.includes("CREDIT_AMOUNT_EXCEEDS_AVAILABLE") || message.includes("CREDIT_SOURCE_EXHAUSTED")) return "مبلغ انتقال از ماندهٔ آزاد رسید قبلی بیشتر است.";
   if (message.includes("CREDIT_EXCEEDS_PLAN")) return "این انتقال از ماندهٔ برنامهٔ جدید بیشتر می‌شود.";
   if (message.includes("CREDIT_APPROVAL_NOT_ALLOWED")) return "تأیید باید توسط فرد دیگری و برای برنامهٔ جاری انجام شود؛ وضعیت رسید را بررسی کنید.";

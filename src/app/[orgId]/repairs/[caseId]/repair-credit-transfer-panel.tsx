@@ -15,11 +15,12 @@ type Transfer = {
 };
 
 export function RepairCreditTransferPanel({ orgId, caseId, currentUserId, expectedVersion, planId, planAmount,
-  oldPayments, verifications, corrections, transfers, canRequest, canApprove }: {
+  oldPayments, verifications, corrections, transfers, refunds, canRequest, canApprove }: {
   orgId: string; caseId: string; currentUserId: string; expectedVersion: number;
   planId: string; planAmount: number; oldPayments: OldPayment[];
   verifications: { payment_id: string }[]; corrections: { payment_id: string }[];
-  transfers: Transfer[]; canRequest: boolean; canApprove: boolean;
+  transfers: Transfer[]; refunds: { source_payment_id: string; amount_irr: number; approved_at: string | null }[];
+  canRequest: boolean; canApprove: boolean;
 }) {
   const router = useRouter();
   const requestKey = useRef<string | null>(null);
@@ -36,7 +37,8 @@ export function RepairCreditTransferPanel({ orgId, caseId, currentUserId, expect
   const eligible = oldPayments.map((payment) => ({
     ...payment,
     available: payment.amount_irr - transfers.reduce((sum, transfer) =>
-      sum + (transfer.source_payment_id === payment.id && transfer.approved_at ? transfer.amount_irr : 0), 0),
+      sum + (transfer.source_payment_id === payment.id && transfer.approved_at ? transfer.amount_irr : 0), 0)
+      - refunds.reduce((sum, refund) => sum + (refund.source_payment_id === payment.id && refund.approved_at ? refund.amount_irr : 0), 0),
   })).filter((payment) => verified.has(payment.id) && !corrected.has(payment.id) && payment.available > 0);
   const currentTransfers = transfers.filter((transfer) => transfer.target_plan_id === planId);
   const approvedAmount = currentTransfers.reduce((sum, transfer) => sum + (transfer.approved_at ? transfer.amount_irr : 0), 0);

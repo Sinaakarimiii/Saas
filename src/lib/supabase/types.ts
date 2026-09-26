@@ -2419,6 +2419,31 @@ export type Database = {
             referencedRelation: "repair_action_plans"; referencedColumns: ["org_id", "case_id", "id"] },
         ]
       }
+      repair_payment_refunds: {
+        Row: {
+          id: string; org_id: string; case_id: string; source_payment_id: string; amount_irr: number
+          reason: string; request_reference: string; requested_by: string; requested_at: string
+          outbound_method: string | null; outbound_reference: string | null; outbound_evidence: string | null
+          approval_reference: string | null; approved_by: string | null; approved_at: string | null
+        }
+        Insert: {
+          id?: string; org_id: string; case_id: string; source_payment_id: string; amount_irr: number
+          reason: string; request_reference: string; requested_by: string; requested_at?: string
+          outbound_method?: string | null; outbound_reference?: string | null; outbound_evidence?: string | null
+          approval_reference?: string | null; approved_by?: string | null; approved_at?: string | null
+        }
+        Update: {
+          id?: string; org_id?: string; case_id?: string; source_payment_id?: string; amount_irr?: number
+          reason?: string; request_reference?: string; requested_by?: string; requested_at?: string
+          outbound_method?: string | null; outbound_reference?: string | null; outbound_evidence?: string | null
+          approval_reference?: string | null; approved_by?: string | null; approved_at?: string | null
+        }
+        Relationships: [
+          { foreignKeyName: "repair_payment_refunds_org_id_case_id_source_payment_id_fkey"
+            columns: ["org_id", "case_id", "source_payment_id"]; isOneToOne: false
+            referencedRelation: "repair_payment_evidence"; referencedColumns: ["org_id", "case_id", "id"] },
+        ]
+      }
       repair_payment_verifications: {
         Row: {
           id: string
@@ -3689,6 +3714,21 @@ export type Database = {
         Args: {
           p_org_id: string; p_case_id: string; p_source_payment_id: string; p_expected_version: number
           p_idempotency_key: string; p_amount_irr: number; p_request_reference: string; p_request_evidence: string
+        }
+        Returns: Json
+      }
+      request_repair_payment_refund: {
+        Args: {
+          p_org_id: string; p_case_id: string; p_source_payment_id: string; p_expected_version: number
+          p_idempotency_key: string; p_amount_irr: number; p_reason: string; p_request_reference: string
+        }
+        Returns: Json
+      }
+      approve_repair_payment_refund: {
+        Args: {
+          p_org_id: string; p_case_id: string; p_refund_id: string; p_expected_version: number
+          p_idempotency_key: string; p_outbound_method: string; p_outbound_reference: string
+          p_outbound_evidence: string; p_approval_reference: string
         }
         Returns: Json
       }
