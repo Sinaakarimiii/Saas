@@ -1,0 +1,30 @@
+{
+  "$schema_note": "Reusable, business-readable step archetypes — a level above workflow-nodes.json (which is the technical/engine node palette). A step archetype composes one or more node types with a default config; these are what a process author picks from when assembling a process before dropping to node-level detail. Process-specific step sequences for the 20 full examples are in sample-full-processes.json.",
+  "step_archetypes": [
+    { "slug": "submit-request", "name_en": "Submit Request", "name_fa": "ارسال درخواست", "composed_of_nodes": ["form"] },
+    { "slug": "manager-approval", "name_en": "Manager Approval", "name_fa": "تأیید مدیر", "composed_of_nodes": ["approval"], "reusable_subprocess_candidate": true },
+    { "slug": "multi-level-approval", "name_en": "Multi-Level Approval Chain", "name_fa": "زنجیره تأیید چندسطحی", "composed_of_nodes": ["approval", "approval", "approval"], "reusable_subprocess_candidate": true },
+    { "slug": "parallel-department-review", "name_en": "Parallel Department Review", "name_fa": "بازبینی موازی چند واحد", "composed_of_nodes": ["parallel-fork", "review", "merge-join"] },
+    { "slug": "route-by-threshold", "name_en": "Route by Threshold", "name_fa": "مسیردهی بر اساس آستانه", "composed_of_nodes": ["decision", "branch-exclusive"] },
+    { "slug": "assign-to-fulfiller", "name_en": "Assign to Fulfiller", "name_fa": "تخصیص به مجری", "composed_of_nodes": ["task"] },
+    { "slug": "provision-access-or-asset", "name_en": "Provision Access/Asset", "name_fa": "فراهم‌سازی دسترسی/دارایی", "composed_of_nodes": ["task", "update-record"] },
+    { "slug": "notify-requester", "name_en": "Notify Requester", "name_fa": "اطلاع‌رسانی به درخواست‌دهنده", "composed_of_nodes": ["notify-in-app", "send-email"] },
+    { "slug": "confirm-and-close", "name_en": "Confirm and Close", "name_fa": "تأیید و بستن", "composed_of_nodes": ["task", "end"] },
+    { "slug": "sla-clock-start", "name_en": "Start SLA Clock", "name_fa": "شروع شمارش SLA", "composed_of_nodes": ["timer-reminder"] },
+    { "slug": "escalate-on-breach", "name_en": "Escalate on SLA Breach", "name_fa": "تشدید هنگام نقض SLA", "composed_of_nodes": ["escalation"] },
+    { "slug": "root-cause-investigation", "name_en": "Root Cause Investigation", "name_fa": "بررسی علت ریشه‌ای", "composed_of_nodes": ["task", "form"] },
+    { "slug": "corrective-action-plan", "name_en": "Corrective Action Plan", "name_fa": "طرح اقدام اصلاحی", "composed_of_nodes": ["form", "task"] },
+    { "slug": "reject-and-return", "name_en": "Reject and Return for Correction", "name_fa": "رد و بازگشت برای اصلاح", "composed_of_nodes": ["branch-exclusive", "loop"] },
+    { "slug": "collect-signature", "name_en": "Collect Signature", "name_fa": "دریافت امضا", "composed_of_nodes": ["approval"] },
+    { "slug": "archive-record", "name_en": "Archive Record", "name_fa": "بایگانی رکورد", "composed_of_nodes": ["update-record"] },
+    { "slug": "three-way-match-check", "name_en": "Three-way Match Check", "name_fa": "بررسی تطبیق سه‌جانبه", "composed_of_nodes": ["decision", "branch-exclusive"] },
+    { "slug": "vendor-communication", "name_en": "Vendor/External Communication", "name_fa": "ارتباط با تأمین‌کننده/بیرونی", "composed_of_nodes": ["send-email", "wait-delay"] },
+    { "slug": "candidate-screening", "name_en": "Candidate Screening", "name_fa": "غربالگری متقاضی", "composed_of_nodes": ["review", "decision"] },
+    { "slug": "post-completion-survey", "name_en": "Post-Completion Survey", "name_fa": "نظرسنجی پس از تکمیل", "composed_of_nodes": ["form", "send-email"] },
+    { "slug": "parallel-fulfillment-fanout", "name_en": "Parallel Fulfillment Fan-out", "name_fa": "توزیع موازی اجرا بین چند واحد", "composed_of_nodes": ["parallel-fork", "task", "task", "merge-join"] },
+    { "slug": "schedule-follow-up", "name_en": "Schedule Follow-up", "name_fa": "زمان‌بندی پیگیری", "composed_of_nodes": ["wait-delay", "task"] },
+    { "slug": "generate-document", "name_en": "Generate Document", "name_fa": "تولید سند", "composed_of_nodes": ["create-document"] },
+    { "slug": "inspection-checklist", "name_en": "Inspection Checklist", "name_fa": "چک‌لیست بازرسی", "composed_of_nodes": ["form", "decision"] },
+    { "slug": "reassign-or-delegate", "name_en": "Reassign or Delegate", "name_fa": "واگذاری یا جانشین‌سپاری", "composed_of_nodes": ["task"] }
+  ]
+}

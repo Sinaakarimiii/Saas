@@ -1,0 +1,31 @@
+{
+  "$schema_note": "domain = APQC PCF Level-1 Category equivalent. functions = APQC Level-2 Process Group equivalent, nested inline (see docs/process-research/09-data-model.md for why functions aren't a separate top-level file).",
+  "domains": [
+    { "slug": "vision-strategy", "name_en": "Vision & Strategy", "name_fa": "چشم‌انداز و استراتژی", "apqc_category_code": "1.0", "is_cross_functional": false,
+      "functions": [ { "slug": "develop-strategy", "name_en": "Develop Business Strategy", "name_fa": "تدوین استراتژی کسب‌وکار" } ] },
+    { "slug": "product-service-development", "name_en": "Product & Service Development", "name_fa": "توسعه محصول و خدمات", "apqc_category_code": "2.0", "is_cross_functional": false,
+      "functions": [ { "slug": "product-development", "name_en": "Develop Products/Services", "name_fa": "توسعه محصول/خدمت" } ] },
+    { "slug": "marketing-sales", "name_en": "Marketing & Sales", "name_fa": "بازاریابی و فروش", "apqc_category_code": "3.0", "is_cross_functional": false,
+      "functions": [ { "slug": "sales-pipeline", "name_en": "Sales Pipeline Management", "name_fa": "مدیریت قیف فروش" }, { "slug": "marketing-campaigns", "name_en": "Marketing Campaign Management", "name_fa": "مدیریت کمپین بازاریابی" } ] },
+    { "slug": "supply-chain-procurement", "name_en": "Supply Chain & Procurement", "name_fa": "زنجیره تأمین و تدارکات", "apqc_category_code": "4.0", "is_cross_functional": true,
+      "functions": [ { "slug": "procurement", "name_en": "Procurement", "name_fa": "تدارکات" }, { "slug": "vendor-management", "name_en": "Vendor Management", "name_fa": "مدیریت تأمین‌کننده" }, { "slug": "logistics-warehousing", "name_en": "Logistics & Warehousing", "name_fa": "لجستیک و انبارداری" } ] },
+    { "slug": "service-delivery", "name_en": "Service Delivery", "name_fa": "تحویل خدمات", "apqc_category_code": "5.0", "is_cross_functional": false,
+      "functions": [ { "slug": "service-fulfillment", "name_en": "Service Fulfillment", "name_fa": "تحقق خدمت" } ] },
+    { "slug": "customer-service", "name_en": "Customer Service", "name_fa": "خدمات مشتری", "apqc_category_code": "6.0", "is_cross_functional": false,
+      "functions": [ { "slug": "case-support", "name_en": "Customer Case & Support", "name_fa": "پشتیبانی و رسیدگی به پرونده مشتری" } ] },
+    { "slug": "human-capital", "name_en": "Human Capital", "name_fa": "سرمایه انسانی", "apqc_category_code": "7.0", "is_cross_functional": true,
+      "functions": [ { "slug": "recruitment", "name_en": "Recruitment", "name_fa": "استخدام" }, { "slug": "employee-lifecycle", "name_en": "Employee Lifecycle", "name_fa": "چرخه عمر کارمند" }, { "slug": "time-attendance", "name_en": "Time & Attendance", "name_fa": "زمان و حضور" }, { "slug": "performance-learning", "name_en": "Performance & Learning", "name_fa": "عملکرد و آموزش" } ] },
+    { "slug": "information-technology", "name_en": "Information Technology", "name_fa": "فناوری اطلاعات", "apqc_category_code": "8.0", "is_cross_functional": true,
+      "functions": [ { "slug": "itsm-support", "name_en": "IT Service Management", "name_fa": "مدیریت خدمات فناوری اطلاعات" }, { "slug": "access-security", "name_en": "Access & Security Management", "name_fa": "مدیریت دسترسی و امنیت" } ] },
+    { "slug": "financial-resources", "name_en": "Financial Resources", "name_fa": "منابع مالی", "apqc_category_code": "9.0", "is_cross_functional": true,
+      "functions": [ { "slug": "accounts-payable", "name_en": "Accounts Payable", "name_fa": "حساب‌های پرداختنی" }, { "slug": "accounts-receivable", "name_en": "Accounts Receivable", "name_fa": "حساب‌های دریافتنی" }, { "slug": "budgeting", "name_en": "Budgeting & Planning", "name_fa": "بودجه‌ریزی" }, { "slug": "financial-close", "name_en": "Financial Close", "name_fa": "بستن حساب‌های مالی" } ] },
+    { "slug": "asset-management", "name_en": "Asset Management", "name_fa": "مدیریت دارایی", "apqc_category_code": "10.0", "is_cross_functional": false,
+      "functions": [ { "slug": "facilities-maintenance", "name_en": "Facilities & Maintenance", "name_fa": "تأسیسات و نگهداری" } ] },
+    { "slug": "risk-compliance", "name_en": "Risk, Compliance & Resiliency", "name_fa": "ریسک، انطباق و تاب‌آوری", "apqc_category_code": "11.0", "is_cross_functional": true,
+      "functions": [ { "slug": "legal", "name_en": "Legal", "name_fa": "حقوقی" }, { "slug": "compliance-audit", "name_en": "Compliance & Audit", "name_fa": "انطباق و ممیزی" }, { "slug": "quality", "name_en": "Quality Management", "name_fa": "مدیریت کیفیت" }, { "slug": "security", "name_en": "Security", "name_fa": "امنیت" } ] },
+    { "slug": "external-relationships", "name_en": "External Relationships", "name_fa": "روابط بیرونی", "apqc_category_code": "12.0", "is_cross_functional": false,
+      "functions": [ { "slug": "stakeholder-relations", "name_en": "Stakeholder Relations", "name_fa": "روابط ذی‌نفعان" } ] },
+    { "slug": "business-capabilities", "name_en": "Business Capabilities", "name_fa": "قابلیت‌های کسب‌وکار", "apqc_category_code": "13.0", "is_cross_functional": true,
+      "functions": [ { "slug": "document-knowledge-management", "name_en": "Document & Knowledge Management", "name_fa": "مدیریت اسناد و دانش" }, { "slug": "project-management", "name_en": "Project Management", "name_fa": "مدیریت پروژه" }, { "slug": "administration", "name_en": "General Administration", "name_fa": "امور اداری عمومی" } ] }
+  ]
+}

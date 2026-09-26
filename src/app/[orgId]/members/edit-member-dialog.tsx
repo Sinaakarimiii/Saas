@@ -27,19 +27,24 @@ export function EditMemberDialog({
   memberId,
   currentRoleId,
   currentManagerId,
+  currentWorkMode,
   roles,
   members,
+  canChangeRole,
 }: {
   orgId: string;
   memberId: string;
   currentRoleId: string;
   currentManagerId: string | null;
+  currentWorkMode: "unspecified" | "shift" | "fixed";
   roles: { id: string; name: string }[];
   members: { id: string; label: string }[];
+  canChangeRole: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [roleId, setRoleId] = useState(currentRoleId);
   const [managerId, setManagerId] = useState(currentManagerId ?? NO_MANAGER);
+  const [workMode, setWorkMode] = useState(currentWorkMode);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -51,6 +56,7 @@ export function EditMemberDialog({
       const result = await updateMember(orgId, memberId, {
         roleId,
         managerId: managerId === NO_MANAGER ? null : managerId,
+        workMode,
       });
       if (result.error) {
         setError(result.error);
@@ -72,7 +78,7 @@ export function EditMemberDialog({
           <DialogTitle>ویرایش عضو</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4">
-          <div className="grid gap-2">
+          {canChangeRole && <div className="grid gap-2">
             <Label>نقش</Label>
             <Select value={roleId} onValueChange={setRoleId}>
               <SelectTrigger className="w-full">
@@ -86,7 +92,7 @@ export function EditMemberDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </div>}
           <div className="grid gap-2">
             <Label>سرپرست مستقیم</Label>
             <Select value={managerId} onValueChange={setManagerId}>
@@ -100,6 +106,17 @@ export function EditMemberDialog({
                     {m.label}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label>نوع برنامهٔ کاری</Label>
+            <Select value={workMode} onValueChange={(value) => setWorkMode(value as typeof workMode)}>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unspecified">تعیین نشده</SelectItem>
+                <SelectItem value="shift">شیفتی</SelectItem>
+                <SelectItem value="fixed">ساعات ثابت</SelectItem>
               </SelectContent>
             </Select>
           </div>

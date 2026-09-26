@@ -1,0 +1,476 @@
+{
+  "$schema_note": "20 fully worked, seedable process bundles per user request (bakhsh 20). Each follows {industry, domain, process, steps, roles, forms, rules, slas} shape. step.node_type references workflow-nodes.json slugs; step.step_archetype references process-steps.json. All content is grounded in the vendor sources cited in each process's source_reference (see docs/process-research/05-process-taxonomy.md); step sequences are this product's own synthesis of those sources into an executable graph shape, not a verbatim copy of any vendor's internal implementation.",
+  "processes": [
+
+    {
+      "process_slug": "leave-request",
+      "industry_slugs": ["cross-industry"],
+      "domain_slug": "human-capital",
+      "process_type_slug": "request",
+      "trigger": "Employee submits a leave request for a future or current date range.",
+      "actors": ["requester", "supervisor"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "requester", "description_en": "Employee submits leave type, date range, reason." },
+        { "order": 2, "node_type": "approval", "step_archetype_slug": "manager-approval", "actor_role_slug": "supervisor", "description_en": "Direct manager approves or rejects." },
+        { "order": 3, "node_type": "update-record", "step_archetype_slug": "confirm-and-close", "actor_role_slug": null, "description_en": "Leave balance updated, calendar entry created." },
+        { "order": 4, "node_type": "notify-in-app", "step_archetype_slug": "notify-requester", "actor_role_slug": null, "description_en": "Requester notified of decision." }
+      ],
+      "forms_used": ["leave-request-form"],
+      "documents_used": [],
+      "business_rules": [],
+      "slas": ["standard-approval-sla"],
+      "escalation": "three-level-approval-escalation",
+      "kpis": ["cycle-time", "on-time-completion-rate"],
+      "source_reference": "SAP SuccessFactors Time Off Workflow Rules"
+    },
+
+    {
+      "process_slug": "purchase-requisition",
+      "industry_slugs": ["cross-industry", "construction", "healthcare-provider"],
+      "domain_slug": "supply-chain-procurement",
+      "process_type_slug": "procurement",
+      "trigger": "An employee needs to buy goods/services above their individual purchasing authority.",
+      "actors": ["requester", "supervisor", "procurement-officer", "director"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "requester", "description_en": "Requester fills item, quantity, estimated amount, cost center." },
+        { "order": 2, "node_type": "decision", "step_archetype_slug": "route-by-threshold", "actor_role_slug": null, "description_en": "Business rule 'approval-threshold-by-amount' determines required approver tier." },
+        { "order": 3, "node_type": "approval", "step_archetype_slug": "manager-approval", "actor_role_slug": "supervisor", "description_en": "Manager approval (all requisitions)." },
+        { "order": 4, "node_type": "approval", "step_archetype_slug": "manager-approval", "actor_role_slug": "director", "description_en": "Director approval (only if amount exceeds threshold)." },
+        { "order": 5, "node_type": "task", "step_archetype_slug": "assign-to-fulfiller", "actor_role_slug": "procurement-officer", "description_en": "Procurement reviews and splits into POs by supplier." },
+        { "order": 6, "node_type": "create-record", "step_archetype_slug": "confirm-and-close", "actor_role_slug": null, "description_en": "Purchase Order(s) created." }
+      ],
+      "forms_used": ["purchase-requisition-form"],
+      "documents_used": ["purchase-order-doc"],
+      "business_rules": [{ "slug": "approval-threshold-by-amount", "hit_policy": "unique", "rules": [
+        { "conditions": { "amount": "> 100000000" }, "outputs": { "required_approver_role": "director" } },
+        { "conditions": { "amount": "<= 100000000" }, "outputs": { "required_approver_role": "manager" } }
+      ]}],
+      "slas": ["standard-approval-sla"],
+      "escalation": "three-level-approval-escalation",
+      "kpis": ["cycle-time", "cost-per-instance"],
+      "source_reference": "SAP Learning — Understanding Approval Process (Ariba)"
+    },
+
+    {
+      "process_slug": "employee-onboarding",
+      "industry_slugs": ["cross-industry"],
+      "domain_slug": "human-capital",
+      "process_type_slug": "onboarding",
+      "trigger": "Hire business process completes (or Change Job for internal transfer).",
+      "actors": ["hr-admin", "it-admin", "hiring-manager", "requester"],
+      "steps": [
+        { "order": 1, "node_type": "create-record", "step_archetype_slug": "provision-access-or-asset", "actor_role_slug": null, "description_en": "System account created (must precede all visible tasks)." },
+        { "order": 2, "node_type": "parallel-fork", "step_archetype_slug": "parallel-fulfillment-fanout", "actor_role_slug": null, "description_en": "Fan out to HR, IT, Manager checklists." },
+        { "order": 3, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "requester", "description_en": "New hire completes personal/contact/emergency-contact info, benefits elections." },
+        { "order": 4, "node_type": "task", "step_archetype_slug": "provision-access-or-asset", "actor_role_slug": "it-admin", "description_en": "Hardware and accounts provisioned." },
+        { "order": 5, "node_type": "approval", "step_archetype_slug": "collect-signature", "actor_role_slug": "requester", "description_en": "Acknowledge handbook/policies, sign NDA." },
+        { "order": 6, "node_type": "merge-join", "step_archetype_slug": "parallel-fulfillment-fanout", "actor_role_slug": null, "description_en": "All checklists complete." },
+        { "order": 7, "node_type": "update-record", "step_archetype_slug": "confirm-and-close", "actor_role_slug": null, "description_en": "Status set to 'Fully Onboarded'." }
+      ],
+      "forms_used": ["onboarding-intake-form"],
+      "documents_used": ["employee-handbook", "nda", "offer-letter"],
+      "business_rules": [],
+      "slas": [],
+      "escalation": null,
+      "kpis": ["time-to-productivity"],
+      "source_reference": "Workday Onboarding Business Process Guidelines"
+    },
+
+    {
+      "process_slug": "employee-offboarding",
+      "industry_slugs": ["cross-industry"],
+      "domain_slug": "human-capital",
+      "process_type_slug": "offboarding",
+      "trigger": "Termination or resignation recorded for an employee.",
+      "actors": ["hr-admin", "it-admin", "supervisor"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "hr-admin", "description_en": "Overview: last working day, PTO payout, communication plan." },
+        { "order": 2, "node_type": "parallel-fork", "step_archetype_slug": "parallel-fulfillment-fanout", "actor_role_slug": null, "description_en": "Fan out to IT (de-provisioning), Finance (final pay), Facilities (asset return)." },
+        { "order": 3, "node_type": "task", "step_archetype_slug": "provision-access-or-asset", "actor_role_slug": "it-admin", "description_en": "De-provision accounts/access (Slack, email, SSO)." },
+        { "order": 4, "node_type": "task", "step_archetype_slug": "assign-to-fulfiller", "actor_role_slug": "hr-admin", "description_en": "Confirm asset return, process PTO payout." },
+        { "order": 5, "node_type": "merge-join", "step_archetype_slug": "parallel-fulfillment-fanout", "actor_role_slug": null, "description_en": "All offboarding tasks complete." },
+        { "order": 6, "node_type": "update-record", "step_archetype_slug": "confirm-and-close", "actor_role_slug": null, "description_en": "Employee status set to terminated." }
+      ],
+      "forms_used": ["offboarding-checklist-form"],
+      "documents_used": [],
+      "business_rules": [],
+      "slas": [],
+      "escalation": null,
+      "kpis": ["cycle-time"],
+      "source_reference": "BambooHR Offboarding"
+    },
+
+    {
+      "process_slug": "recruitment-requisition-to-hire",
+      "industry_slugs": ["cross-industry"],
+      "domain_slug": "human-capital",
+      "process_type_slug": "hr",
+      "trigger": "Hiring Manager needs to fill an approved position.",
+      "actors": ["hiring-manager", "recruiter", "supervisor"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "hiring-manager", "description_en": "Create Job Requisition." },
+        { "order": 2, "node_type": "approval", "step_archetype_slug": "manager-approval", "actor_role_slug": "supervisor", "description_en": "Requisition review/approval." },
+        { "order": 3, "node_type": "task", "step_archetype_slug": "assign-to-fulfiller", "actor_role_slug": "recruiter", "description_en": "Post position, source candidates." },
+        { "order": 4, "node_type": "review", "step_archetype_slug": "candidate-screening", "actor_role_slug": "recruiter", "description_en": "Screen/disposition/interview candidates through stages." },
+        { "order": 5, "node_type": "task", "step_archetype_slug": "assign-to-fulfiller", "actor_role_slug": "recruiter", "description_en": "Initiate offer." },
+        { "order": 6, "node_type": "approval", "step_archetype_slug": "collect-signature", "actor_role_slug": "requester", "description_en": "Candidate approves offer." },
+        { "order": 7, "node_type": "create-record", "step_archetype_slug": "confirm-and-close", "actor_role_slug": null, "description_en": "Candidate set 'Ready for Hire', feeds into Onboarding." }
+      ],
+      "forms_used": ["job-requisition-form"],
+      "documents_used": ["offer-letter"],
+      "business_rules": [],
+      "slas": [],
+      "escalation": null,
+      "kpis": ["time-to-fill"],
+      "source_reference": "Workday Job Requisitions / Recruiting Subprocesses"
+    },
+
+    {
+      "process_slug": "expense-reimbursement",
+      "industry_slugs": ["cross-industry"],
+      "domain_slug": "financial-resources",
+      "process_type_slug": "financial",
+      "trigger": "Employee incurs a business expense and files a claim.",
+      "actors": ["requester", "supervisor", "finance-admin", "delegate"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "requester", "description_en": "Employee submits expense report with receipts." },
+        { "order": 2, "node_type": "decision", "step_archetype_slug": "route-by-threshold", "actor_role_slug": null, "description_en": "Policy/audit check routes by amount and category." },
+        { "order": 3, "node_type": "approval", "step_archetype_slug": "manager-approval", "actor_role_slug": "supervisor", "description_en": "Management-chain routing: tentative approvals up the chain until an approver with sufficient limit is reached (delegate may stand in if manager unavailable)." },
+        { "order": 4, "node_type": "task", "step_archetype_slug": "assign-to-fulfiller", "actor_role_slug": "finance-admin", "description_en": "Processor reimburses, exports to accounting." }
+      ],
+      "forms_used": ["expense-claim-form"],
+      "documents_used": [],
+      "business_rules": [],
+      "slas": ["expense-reimbursement-sla"],
+      "escalation": "three-level-approval-escalation",
+      "kpis": ["cycle-time", "rework-rate"],
+      "source_reference": "SAP Concur — How Concur Expense Works"
+    },
+
+    {
+      "process_slug": "training-request",
+      "industry_slugs": ["cross-industry"],
+      "domain_slug": "human-capital",
+      "process_type_slug": "request",
+      "trigger": "Employee wants to enroll in instructor-led or on-the-job training.",
+      "actors": ["requester", "supervisor", "hr-admin"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "requester", "description_en": "Employee requests enrollment." },
+        { "order": 2, "node_type": "approval", "step_archetype_slug": "manager-approval", "actor_role_slug": "supervisor", "description_en": "Manager approval (only required for instructor-led/OJT)." },
+        { "order": 3, "node_type": "approval", "step_archetype_slug": "manager-approval", "actor_role_slug": "hr-admin", "description_en": "Training Coordinator/Learning Team approves." },
+        { "order": 4, "node_type": "update-record", "step_archetype_slug": "confirm-and-close", "actor_role_slug": null, "description_en": "Course activated on transcript within 24hrs." }
+      ],
+      "forms_used": ["training-enrollment-form"],
+      "documents_used": [],
+      "business_rules": [],
+      "slas": [{ "slug": "standard-approval-sla", "note": "generic; vendor-cited approvals are typically 3-5 business days, most under 24hrs" }],
+      "escalation": null,
+      "kpis": ["cycle-time"],
+      "source_reference": "Workday Learning guides"
+    },
+
+    {
+      "process_slug": "incident-management",
+      "industry_slugs": ["cross-industry", "technology-software-saas"],
+      "domain_slug": "information-technology",
+      "process_type_slug": "incident",
+      "trigger": "A service disruption is detected or reported.",
+      "actors": ["service-desk-agent", "it-admin", "incident-manager"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "service-desk-agent", "description_en": "Detection & recording (1st line)." },
+        { "order": 2, "node_type": "decision", "step_archetype_slug": "route-by-threshold", "actor_role_slug": null, "description_en": "Classification & priority determined." },
+        { "order": 3, "node_type": "timer-reminder", "step_archetype_slug": "sla-clock-start", "actor_role_slug": null, "description_en": "SLA clock starts per priority (P1/P3, see slas.json)." },
+        { "order": 4, "node_type": "task", "step_archetype_slug": "assign-to-fulfiller", "actor_role_slug": "it-admin", "description_en": "Investigation & diagnosis (2nd/3rd line)." },
+        { "order": 5, "node_type": "escalation", "step_archetype_slug": "escalate-on-breach", "actor_role_slug": "incident-manager", "description_en": "If P1 and unresolved past threshold, Major Incident Manager coordinates response." },
+        { "order": 6, "node_type": "update-record", "step_archetype_slug": "confirm-and-close", "actor_role_slug": null, "description_en": "Resolution & recovery, closure." }
+      ],
+      "forms_used": ["incident-report-form"],
+      "documents_used": ["incident-report-doc"],
+      "business_rules": [],
+      "slas": ["incident-p1-response", "incident-p1-resolution", "incident-p3-resolution"],
+      "escalation": "incident-major-escalation",
+      "kpis": ["first-response-time", "resolution-time", "sla-breach-rate"],
+      "source_reference": "ServiceNow Community Incident Workflow; ITIL 4"
+    },
+
+    {
+      "process_slug": "change-management",
+      "industry_slugs": ["cross-industry", "technology-software-saas", "banking"],
+      "domain_slug": "information-technology",
+      "process_type_slug": "approval",
+      "trigger": "A change to a production system is proposed.",
+      "actors": ["it-admin", "change-advisory-board", "supervisor"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "it-admin", "description_en": "Raise & record change; set Risk/Impact; add Implementation/Test/Backout tasks." },
+        { "order": 2, "node_type": "decision", "step_archetype_slug": "route-by-threshold", "actor_role_slug": null, "description_en": "Branch: Standard (pre-approved) vs Normal (2-tier approval) vs Emergency (bypass, retro-review)." },
+        { "order": 3, "node_type": "approval", "step_archetype_slug": "manager-approval", "actor_role_slug": "supervisor", "description_en": "Peer/technical approval (Normal change only)." },
+        { "order": 4, "node_type": "approval", "step_archetype_slug": "manager-approval", "actor_role_slug": "change-advisory-board", "description_en": "CAB authorization (Normal change only)." },
+        { "order": 5, "node_type": "task", "step_archetype_slug": "assign-to-fulfiller", "actor_role_slug": "it-admin", "description_en": "Implementation during scheduled window." },
+        { "order": 6, "node_type": "review", "step_archetype_slug": "root-cause-investigation", "actor_role_slug": "change-advisory-board", "description_en": "Post-implementation review (mandatory for Emergency changes)." }
+      ],
+      "forms_used": ["change-request-form"],
+      "documents_used": ["change-record-doc"],
+      "business_rules": [{ "slug": "change-type-routing", "hit_policy": "first", "rules": [
+        { "conditions": { "change_type": "= emergency" }, "outputs": { "route": "bypass_approval_retro_review" } },
+        { "conditions": { "change_type": "= standard" }, "outputs": { "route": "pre_approved_skip_cab" } },
+        { "conditions": { "change_type": "= normal" }, "outputs": { "route": "peer_then_cab_approval" } }
+      ]}],
+      "slas": [],
+      "escalation": null,
+      "kpis": ["rework-rate", "sla-breach-rate"],
+      "source_reference": "ServiceNow Community Change Management Process Workflow"
+    },
+
+    {
+      "process_slug": "it-access-request",
+      "industry_slugs": ["cross-industry"],
+      "domain_slug": "information-technology",
+      "process_type_slug": "request",
+      "trigger": "An employee needs access to a system/application.",
+      "actors": ["requester", "supervisor", "it-admin"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "requester", "description_en": "Submit catalog item: system, access level, business justification." },
+        { "order": 2, "node_type": "approval", "step_archetype_slug": "manager-approval", "actor_role_slug": "supervisor", "description_en": "Manager/fulfiller approval." },
+        { "order": 3, "node_type": "task", "step_archetype_slug": "provision-access-or-asset", "actor_role_slug": "it-admin", "description_en": "Provision account/access." },
+        { "order": 4, "node_type": "notify-in-app", "step_archetype_slug": "notify-requester", "actor_role_slug": null, "description_en": "Notify requester; requester confirms receipt." }
+      ],
+      "forms_used": ["access-request-form"],
+      "documents_used": [],
+      "business_rules": [],
+      "slas": ["service-request-fulfillment-sla"],
+      "escalation": null,
+      "kpis": ["cycle-time"],
+      "source_reference": "ServiceNow Service Catalog pattern (generic request-to-fulfillment)"
+    },
+
+    {
+      "process_slug": "it-asset-request",
+      "industry_slugs": ["cross-industry"],
+      "domain_slug": "information-technology",
+      "process_type_slug": "request",
+      "trigger": "An employee needs a hardware asset or software license.",
+      "actors": ["requester", "supervisor", "it-admin"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "requester", "description_en": "Submit asset type, specification, justification." },
+        { "order": 2, "node_type": "approval", "step_archetype_slug": "manager-approval", "actor_role_slug": "supervisor", "description_en": "Manager approval." },
+        { "order": 3, "node_type": "task", "step_archetype_slug": "provision-access-or-asset", "actor_role_slug": "it-admin", "description_en": "Procure/allocate asset, update inventory." },
+        { "order": 4, "node_type": "notify-in-app", "step_archetype_slug": "notify-requester", "actor_role_slug": null, "description_en": "Notify requester of readiness." }
+      ],
+      "forms_used": ["asset-request-form"],
+      "documents_used": [],
+      "business_rules": [],
+      "slas": ["service-request-fulfillment-sla"],
+      "escalation": null,
+      "kpis": ["cycle-time"],
+      "source_reference": "Generic Request Fulfillment pattern (thin sourcing — see 16-gap-analysis.md)"
+    },
+
+    {
+      "process_slug": "service-request-fulfillment",
+      "industry_slugs": ["cross-industry"],
+      "domain_slug": "information-technology",
+      "process_type_slug": "fulfillment",
+      "trigger": "End user submits a catalog item.",
+      "actors": ["requester", "it-admin"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "requester", "description_en": "Submit catalog item." },
+        { "order": 2, "node_type": "branch-exclusive", "step_archetype_slug": "reject-and-return", "actor_role_slug": null, "description_en": "Approval gate: if rejected, end; if approved, continue." },
+        { "order": 3, "node_type": "task", "step_archetype_slug": "provision-access-or-asset", "actor_role_slug": "it-admin", "description_en": "Fulfiller processes/provisions, cross-team coordination if needed." },
+        { "order": 4, "node_type": "notify-in-app", "step_archetype_slug": "notify-requester", "actor_role_slug": null, "description_en": "System notifies requester; requester confirms receipt; request closed." }
+      ],
+      "forms_used": ["access-request-form"],
+      "documents_used": [],
+      "business_rules": [],
+      "slas": ["service-request-fulfillment-sla"],
+      "escalation": null,
+      "kpis": ["cycle-time", "on-time-completion-rate"],
+      "source_reference": "ServiceNow Community — Service Catalog Order to Fulfillment"
+    },
+
+    {
+      "process_slug": "vendor-onboarding",
+      "industry_slugs": ["cross-industry", "construction", "downstream-petroleum"],
+      "domain_slug": "supply-chain-procurement",
+      "process_type_slug": "onboarding",
+      "trigger": "A new supplier needs to be registered before transacting.",
+      "actors": ["vendor-supplier", "procurement-officer"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "vendor-supplier", "description_en": "Supplier completes Basics/Payment/Profile sections on the portal." },
+        { "order": 2, "node_type": "decision", "step_archetype_slug": "route-by-threshold", "actor_role_slug": null, "description_en": "Region selection determines required local documents (US suppliers additionally submit bank verification)." },
+        { "order": 3, "node_type": "review", "step_archetype_slug": "vendor-communication", "actor_role_slug": "procurement-officer", "description_en": "Procurement verifies tax ID, bank details, category." },
+        { "order": 4, "node_type": "update-record", "step_archetype_slug": "confirm-and-close", "actor_role_slug": null, "description_en": "Supplier marked 'ready to transact'." }
+      ],
+      "forms_used": ["vendor-registration-form"],
+      "documents_used": ["vendor-bank-verification-letter"],
+      "business_rules": [],
+      "slas": [],
+      "escalation": null,
+      "kpis": ["cycle-time", "vendor-otd-rate"],
+      "source_reference": "Coupa Supplier Portal Onboarding"
+    },
+
+    {
+      "process_slug": "invoice-approval",
+      "industry_slugs": ["cross-industry"],
+      "domain_slug": "financial-resources",
+      "process_type_slug": "approval",
+      "trigger": "A vendor invoice is received.",
+      "actors": ["finance-admin", "supervisor", "executive"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "finance-admin", "description_en": "Invoice submitted/received." },
+        { "order": 2, "node_type": "decision", "step_archetype_slug": "three-way-match-check", "actor_role_slug": null, "description_en": "Matched against PO/receipt/delivery docs." },
+        { "order": 3, "node_type": "approval", "step_archetype_slug": "manager-approval", "actor_role_slug": "supervisor", "description_en": "Manager review." },
+        { "order": 4, "node_type": "approval", "step_archetype_slug": "manager-approval", "actor_role_slug": "executive", "description_en": "CFO approval (only if amount exceeds threshold, e.g. $20,000)." },
+        { "order": 5, "node_type": "update-record", "step_archetype_slug": "confirm-and-close", "actor_role_slug": null, "description_en": "Marked 'Approved', ready for payment." }
+      ],
+      "forms_used": ["invoice-submission-form"],
+      "documents_used": ["invoice-doc"],
+      "business_rules": [{ "slug": "invoice-cfo-threshold", "hit_policy": "unique", "rules": [
+        { "conditions": { "amount": "> 20000" }, "outputs": { "required_approver_role": "executive" } },
+        { "conditions": { "amount": "<= 20000" }, "outputs": { "required_approver_role": "manager" } }
+      ]}],
+      "slas": ["standard-approval-sla"],
+      "escalation": "three-level-approval-escalation",
+      "kpis": ["three-way-match-exception-rate", "cycle-time"],
+      "source_reference": "NetSuite AP Automation Workflow"
+    },
+
+    {
+      "process_slug": "contract-review-legal",
+      "industry_slugs": ["cross-industry", "legal-services"],
+      "domain_slug": "risk-compliance",
+      "process_type_slug": "review",
+      "trigger": "A contract is created/uploaded for review.",
+      "actors": ["requester", "legal-counsel", "executive"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "requester", "description_en": "Contract uploaded, status Draft→In Review." },
+        { "order": 2, "node_type": "review", "step_archetype_slug": "root-cause-investigation", "actor_role_slug": "legal-counsel", "description_en": "Internal legal review with SLA deadline (e.g. 3 business days)." },
+        { "order": 3, "node_type": "decision", "step_archetype_slug": "route-by-threshold", "actor_role_slug": null, "description_en": "Contracts above value threshold auto-require Finance + Legal approval." },
+        { "order": 4, "node_type": "escalation", "step_archetype_slug": "escalate-on-breach", "actor_role_slug": "supervisor", "description_en": "Escalate to manager if no response within window (e.g. 5 days)." },
+        { "order": 5, "node_type": "approval", "step_archetype_slug": "collect-signature", "actor_role_slug": "executive", "description_en": "Executive sign-off." },
+        { "order": 6, "node_type": "update-record", "step_archetype_slug": "archive-record", "actor_role_slug": null, "description_en": "Archived with immutable record." }
+      ],
+      "forms_used": ["contract-review-request-form"],
+      "documents_used": ["contract-doc"],
+      "business_rules": [],
+      "slas": ["contract-review-sla"],
+      "escalation": "three-level-approval-escalation",
+      "kpis": ["cycle-time", "rework-rate"],
+      "source_reference": "DocuSign Support — The Contract Review Process"
+    },
+
+    {
+      "process_slug": "audit-finding-remediation",
+      "industry_slugs": ["cross-industry", "banking", "healthcare-provider"],
+      "domain_slug": "risk-compliance",
+      "process_type_slug": "audit",
+      "trigger": "An audit finding is identified and assessed.",
+      "actors": ["auditor", "compliance-officer", "process-owner"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "auditor", "description_en": "Finding recorded with supporting evidence." },
+        { "order": 2, "node_type": "form", "step_archetype_slug": "corrective-action-plan", "actor_role_slug": "process-owner", "description_en": "Root cause analysis + remediation plan (corrective vs preventive), RACI + milestones." },
+        { "order": 3, "node_type": "task", "step_archetype_slug": "assign-to-fulfiller", "actor_role_slug": "process-owner", "description_en": "Execution: tickets linked to finding, config/process/training changes." },
+        { "order": 4, "node_type": "review", "step_archetype_slug": "root-cause-investigation", "actor_role_slug": "compliance-officer", "description_en": "Validation/re-testing against acceptance criteria." },
+        { "order": 5, "node_type": "update-record", "step_archetype_slug": "archive-record", "actor_role_slug": null, "description_en": "Closure: update control narratives, procedures, risk register." }
+      ],
+      "forms_used": ["audit-finding-form"],
+      "documents_used": ["audit-report-doc", "corrective-action-plan-doc"],
+      "business_rules": [],
+      "slas": [],
+      "escalation": null,
+      "kpis": ["audit-finding-closure-rate"],
+      "source_reference": "Hyperproof — How to Remediate Audit Findings"
+    },
+
+    {
+      "process_slug": "maintenance-repair-request",
+      "industry_slugs": ["cross-industry", "construction", "property-management"],
+      "domain_slug": "asset-management",
+      "process_type_slug": "maintenance",
+      "trigger": "A facility/asset issue is reported.",
+      "actors": ["requester", "technician", "supervisor"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "requester", "description_en": "Requester selects asset/location, describes issue, attaches photo." },
+        { "order": 2, "node_type": "approval", "step_archetype_slug": "manager-approval", "actor_role_slug": "supervisor", "description_en": "Request reviewed/approved, converted to Work Order." },
+        { "order": 3, "node_type": "task", "step_archetype_slug": "assign-to-fulfiller", "actor_role_slug": "technician", "description_en": "Technician assigned and scheduled; parts ordered if needed." },
+        { "order": 4, "node_type": "task", "step_archetype_slug": "assign-to-fulfiller", "actor_role_slug": "technician", "description_en": "Technician updates completion time/materials/notes." },
+        { "order": 5, "node_type": "update-record", "step_archetype_slug": "confirm-and-close", "actor_role_slug": null, "description_en": "Work Order closed, record retained." }
+      ],
+      "forms_used": ["maintenance-request-form"],
+      "documents_used": ["work-order-doc"],
+      "business_rules": [],
+      "slas": ["service-request-fulfillment-sla"],
+      "escalation": null,
+      "kpis": ["asset-uptime", "cycle-time"],
+      "source_reference": "UpKeep/eMaint CMMS Work Order Process"
+    },
+
+    {
+      "process_slug": "document-approval-cycle",
+      "industry_slugs": ["cross-industry"],
+      "domain_slug": "business-capabilities",
+      "process_type_slug": "document",
+      "trigger": "A document is submitted for approval before publishing.",
+      "actors": ["requester", "supervisor"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "requester", "description_en": "Submit file for approval." },
+        { "order": 2, "node_type": "branch-exclusive", "step_archetype_slug": "route-by-threshold", "actor_role_slug": null, "description_en": "Route Sequential (approver 1 before approver 2) or Parallel (all reviewers simultaneously), per document policy." },
+        { "order": 3, "node_type": "approval", "step_archetype_slug": "manager-approval", "actor_role_slug": "supervisor", "description_en": "Approver(s) review, capture comments, update approval status." },
+        { "order": 4, "node_type": "loop", "step_archetype_slug": "reject-and-return", "actor_role_slug": null, "description_en": "If changes requested, return to submitter (bounded rework loop)." },
+        { "order": 5, "node_type": "update-record", "step_archetype_slug": "archive-record", "actor_role_slug": null, "description_en": "Publish final version." }
+      ],
+      "forms_used": [],
+      "documents_used": ["policy-document"],
+      "business_rules": [],
+      "slas": ["standard-approval-sla"],
+      "escalation": null,
+      "kpis": ["rework-rate", "cycle-time"],
+      "source_reference": "SharePoint / M-Files Document Approval Workflow"
+    },
+
+    {
+      "process_slug": "refund-return-request",
+      "industry_slugs": ["cross-industry", "retail", "ecommerce"],
+      "domain_slug": "customer-service",
+      "process_type_slug": "request",
+      "trigger": "A customer requests a refund or product return.",
+      "actors": ["customer", "service-desk-agent", "finance-admin"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "customer", "description_en": "Customer submits order reference and reason." },
+        { "order": 2, "node_type": "review", "step_archetype_slug": "root-cause-investigation", "actor_role_slug": "service-desk-agent", "description_en": "Agent views order history, sets Processing Plan and Repayment Method." },
+        { "order": 3, "node_type": "task", "step_archetype_slug": "assign-to-fulfiller", "actor_role_slug": "finance-admin", "description_en": "Actual return/refund transaction processed." },
+        { "order": 4, "node_type": "notify-in-app", "step_archetype_slug": "notify-requester", "actor_role_slug": null, "description_en": "Customer notified of resolution." }
+      ],
+      "forms_used": ["refund-request-form"],
+      "documents_used": [],
+      "business_rules": [],
+      "slas": ["service-request-fulfillment-sla"],
+      "escalation": null,
+      "kpis": ["csat-score", "cycle-time"],
+      "source_reference": "Salesforce Help — Track Customer Returns; Salesforce Order Management"
+    },
+
+    {
+      "process_slug": "customer-complaint-handling",
+      "industry_slugs": ["cross-industry"],
+      "domain_slug": "customer-service",
+      "process_type_slug": "case-management",
+      "trigger": "A customer files a complaint.",
+      "actors": ["customer", "service-desk-agent", "supervisor"],
+      "steps": [
+        { "order": 1, "node_type": "form", "step_archetype_slug": "submit-request", "actor_role_slug": "customer", "description_en": "Complaint intake: category, description, desired resolution." },
+        { "order": 2, "node_type": "task", "step_archetype_slug": "assign-to-fulfiller", "actor_role_slug": "service-desk-agent", "description_en": "Single agent view of customer history; investigate." },
+        { "order": 3, "node_type": "escalation", "step_archetype_slug": "escalate-on-breach", "actor_role_slug": "supervisor", "description_en": "Escalate if unresolved past SLA threshold." },
+        { "order": 4, "node_type": "task", "step_archetype_slug": "confirm-and-close", "actor_role_slug": "service-desk-agent", "description_en": "Resolve; analyze data for trend/improvement." },
+        { "order": 5, "node_type": "form", "step_archetype_slug": "post-completion-survey", "actor_role_slug": "customer", "description_en": "Optional CSAT follow-up." }
+      ],
+      "forms_used": ["complaint-intake-form", "csat-survey-form"],
+      "documents_used": [],
+      "business_rules": [],
+      "slas": ["service-request-fulfillment-sla"],
+      "escalation": "three-level-approval-escalation",
+      "kpis": ["csat-score", "resolution-time"],
+      "source_reference": "Generic case-management pattern (thin sourcing — see 16-gap-analysis.md); Zendesk customer complaint software overview"
+    }
+  ]
+}

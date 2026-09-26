@@ -19,13 +19,14 @@ export function NewTemplateDialog({ orgId }: { orgId: string }) {
   const [name, setName] = useState("");
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("16:00");
+  const [colorHex, setColorHex] = useState("#2563EB");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function onSubmit() {
     setError(null);
     startTransition(async () => {
-      const result = await createShiftTemplate(orgId, { name, startTime, endTime });
+      const result = await createShiftTemplate(orgId, { name, startTime, endTime, colorHex });
       if (result.error) {
         setError(result.error);
         return;
@@ -53,6 +54,10 @@ export function NewTemplateDialog({ orgId }: { orgId: string }) {
               onChange={(e) => setName(e.target.value)}
               placeholder="مثلاً شیفت صبح"
             />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="tpl-color">رنگ شیفت</Label>
+            <Input id="tpl-color" type="color" value={colorHex} onChange={(e) => setColorHex(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">

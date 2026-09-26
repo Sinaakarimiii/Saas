@@ -92,12 +92,16 @@ export async function voidAttendanceLog(orgId: string, logId: string): Promise<A
   } = await supabase.auth.getUser();
   if (!user) return { error: "ابتدا وارد شوید" };
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("attendance_logs")
     .update({ voided_at: new Date().toISOString(), voided_by: user.id })
-    .eq("id", logId);
+    .eq("id", logId)
+    .eq("org_id", orgId)
+    .is("voided_at", null)
+    .select("id")
+    .maybeSingle();
 
-  if (error) return { error: "باطل‌کردن ثبت انجام نشد" };
+  if (error || !data) return { error: "باطل‌کردن ثبت انجام نشد" };
 
   revalidatePath(`/${orgId}/attendance`);
   return { success: true };

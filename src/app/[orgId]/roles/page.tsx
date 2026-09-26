@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { RoleEditorDialog } from "./role-editor-dialog";
+import { RoleInvitationApproval } from "./role-invitation-approval";
 
 export default async function RolesPage({
   params,
@@ -29,7 +30,7 @@ export default async function RolesPage({
     await Promise.all([
       supabase
         .from("roles")
-        .select("id, name, is_system")
+        .select("id, name, is_system, management_rank, manager_invitable")
         .eq("org_id", orgId)
         .is("deleted_at", null)
         .order("created_at", { ascending: true }),
@@ -53,6 +54,7 @@ export default async function RolesPage({
         <h1 className="text-2xl font-bold">نقش‌ها</h1>
         <RoleEditorDialog
           orgId={orgId}
+          maxRank={ctx.roleRank}
           permissionsCatalog={permissionsCatalog ?? []}
           trigger={<Button>+ نقش جدید</Button>}
         />
@@ -72,13 +74,24 @@ export default async function RolesPage({
                 <CardDescription>{grantedCount} دسترسی فعال</CardDescription>
               </CardHeader>
               <CardContent>
+                {!role.is_system && (
+                  <div className="mb-3">
+                    <RoleInvitationApproval
+                      orgId={orgId}
+                      roleId={role.id}
+                      initialApproved={role.manager_invitable}
+                    />
+                  </div>
+                )}
                 <RoleEditorDialog
                   orgId={orgId}
+                  maxRank={ctx.roleRank}
                   permissionsCatalog={permissionsCatalog ?? []}
                   role={{
                     id: role.id,
                     name: role.name,
                     isSystem: role.is_system,
+                    managementRank: role.management_rank,
                     grants,
                   }}
                   trigger={

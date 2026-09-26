@@ -58,7 +58,7 @@ export function InviteMemberDialog({
             <DialogTitle>دعوت عضو جدید</DialogTitle>
             <DialogDescription>
               یک ایمیل دعوت برای این فرد ارسال می‌شود. اگر قبلاً حساب کاربری
-              داشته باشد، مستقیم به این سازمان اضافه می‌شود.
+              تأییدشده داشته باشد، مستقیم به این سازمان اضافه می‌شود.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">

@@ -3,6 +3,7 @@ import gregorian from "react-date-object/calendars/gregorian";
 import gregorian_en from "react-date-object/locales/gregorian_en";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
+export { fetchHolidayDates } from "./holiday-dates";
 
 // Fridays are the Iranian weekend and aren't individually rowed in
 // calendar_events (the source dataset only lists named holidays/occasions),
@@ -18,16 +19,6 @@ export const redDayClassName = "text-red-600 dark:text-red-400 font-semibold";
 
 // Global reference data (not org-scoped) -- safe to fetch once per page and
 // pass down to every calendar/date-picker on it.
-export async function fetchHolidayDates(
-  supabase: SupabaseClient<Database>,
-): Promise<string[]> {
-  const { data } = await supabase
-    .from("calendar_events")
-    .select("gregorian_date")
-    .eq("is_holiday", true);
-  return (data ?? []).map((r) => r.gregorian_date);
-}
-
 export type DayStatus = "official_holiday" | "unofficial_holiday" | "workday";
 export type DayStatusOverride = { status: DayStatus; note: string | null };
 

@@ -1,0 +1,19 @@
+{
+  "$schema_note": "See docs/process-research/06-process-patterns.md for full rationale and real-world source per pattern.",
+  "patterns": [
+    { "slug": "simple-approval", "name_en": "Simple Approval", "nodes": ["form", "approval", "create-record"], "example_process": "leave-request" },
+    { "slug": "multi-level-approval", "name_en": "Multi-Level (Sequential) Approval", "nodes": ["form", "approval", "approval", "approval"], "example_process": "expense-reimbursement" },
+    { "slug": "parallel-approval", "name_en": "Parallel Approval", "nodes": ["form", "parallel-fork", "approval", "approval", "approval", "merge-join"], "example_process": "contract-approval" },
+    { "slug": "threshold-conditional-approval", "name_en": "Threshold-Based Conditional Approval", "nodes": ["form", "decision", "branch-exclusive", "approval"], "example_process": "invoice-approval" },
+    { "slug": "sequential-review-rework", "name_en": "Sequential Review-and-Rework", "nodes": ["form", "review", "loop", "approval"], "example_process": "contract-review" },
+    { "slug": "sla-escalation-chain", "name_en": "SLA / Escalation Chain", "nodes": ["task", "timer-reminder", "escalation", "escalation"], "example_process": "incident-management" },
+    { "slug": "exception-handling", "name_en": "Exception Handling (Non-Interrupting)", "nodes": ["timer-reminder", "task", "merge-join"], "example_process": "change-management" },
+    { "slug": "conditional-branch", "name_en": "Conditional Branch", "nodes": ["decision", "branch-exclusive"], "example_process": "purchase-requisition" },
+    { "slug": "rework-loop", "name_en": "Loop (Rework Cycle)", "nodes": ["form", "review", "loop"], "example_process": "document-approval-cycle" },
+    { "slug": "parallel-independent-tasks", "name_en": "Parallel Independent Tasks (Fork/Join)", "nodes": ["parallel-fork", "task", "task", "task", "merge-join"], "example_process": "it-onboarding" },
+    { "slug": "delegation", "name_en": "Delegation / Temporary Reassignment", "nodes": ["approval"], "config_note": "delegation resolved by assignment_rules, not a distinct node", "example_process": "expense-reimbursement" },
+    { "slug": "scheduled-process", "name_en": "Scheduled / Recurring Process", "nodes": ["start", "task", "send-email"], "example_process": "contract-renewal" },
+    { "slug": "generic-request-to-fulfillment", "name_en": "Generic Request-to-Fulfillment", "nodes": ["form", "approval", "task", "notify-in-app"], "example_process": "it-access-request" },
+    { "slug": "generic-onboarding-orchestration", "name_en": "Generic Onboarding/Offboarding Orchestration", "nodes": ["form", "parallel-fork", "task", "task", "task", "merge-join", "update-record"], "example_process": "employee-onboarding" }
+  ]
+}

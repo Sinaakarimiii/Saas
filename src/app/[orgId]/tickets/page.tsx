@@ -16,17 +16,34 @@ import {
 
 export default async function TicketsPage({
   params,
+  searchParams,
 }: PageProps<"/[orgId]/tickets">) {
   const { orgId } = await params;
+  const query = await searchParams;
+  const requestedPage = typeof query.page === "string" ? Number.parseInt(query.page, 10) : 1;
+  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const pageSize = 50;
   const ctx = await getOrgContext(orgId);
   const supabase = await createClient();
 
+  const { count } = await supabase
+    .from("tickets")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .is("deleted_at", null);
+
+  const totalPages = Math.max(1, Math.ceil((count ?? 0) / pageSize));
+  const currentPage = Math.min(page, totalPages);
   const { data: tickets } = await supabase
     .from("tickets")
     .select("id, tracking_code, title, status, created_at, form_templates(name)")
     .eq("org_id", orgId)
     .is("deleted_at", null)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range((currentPage - 1) * pageSize, currentPage * pageSize - 1);
+
+  const hasPreviousPage = currentPage > 1;
+  const hasNextPage = currentPage < totalPages;
 
   return (
     <div className="flex flex-col gap-4">
@@ -77,6 +94,24 @@ export default async function TicketsPage({
             ))}
           </TableBody>
         </Table>
+      )}
+
+      {(hasPreviousPage || hasNextPage) && (
+        <nav className="flex items-center justify-between" aria-label="صفحه‌بندی تیکت‌ها">
+          {hasPreviousPage ? (
+            <Button asChild variant="outline">
+              <Link href={`/${orgId}/tickets?page=${currentPage - 1}`}>صفحهٔ قبل</Link>
+            </Button>
+          ) : <span />}
+          <span className="text-sm text-muted-foreground">
+            صفحهٔ {currentPage} از {totalPages}
+          </span>
+          {hasNextPage ? (
+            <Button asChild variant="outline">
+              <Link href={`/${orgId}/tickets?page=${currentPage + 1}`}>صفحهٔ بعد</Link>
+            </Button>
+          ) : <span />}
+        </nav>
       )}
     </div>
   );

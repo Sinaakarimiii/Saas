@@ -1,0 +1,22 @@
+{
+  "kpis": [
+    { "slug": "cycle-time", "name_en": "Average Cycle Time", "name_fa": "میانگین زمان چرخه", "unit": "hours", "applies_to_process_types": ["request", "approval", "fulfillment"] },
+    { "slug": "on-time-completion-rate", "name_en": "On-Time Completion Rate", "name_fa": "نرخ تکمیل به‌موقع", "unit": "percent", "applies_to_process_types": ["approval", "service", "fulfillment"] },
+    { "slug": "sla-breach-rate", "name_en": "SLA Breach Rate", "name_fa": "نرخ نقض SLA", "unit": "percent", "applies_to_process_types": ["incident", "service", "case-management"] },
+    { "slug": "first-response-time", "name_en": "First Response Time", "name_fa": "زمان اولین پاسخ", "unit": "minutes", "applies_to_process_types": ["incident", "customer-service"] },
+    { "slug": "resolution-time", "name_en": "Resolution Time", "name_fa": "زمان حل مسئله", "unit": "hours", "applies_to_process_types": ["incident", "case-management", "customer-service"] },
+    { "slug": "rework-rate", "name_en": "Rework/Rejection Rate", "name_fa": "نرخ برگشت/رد", "unit": "percent", "applies_to_process_types": ["review", "approval", "document"] },
+    { "slug": "escalation-rate", "name_en": "Escalation Rate", "name_fa": "نرخ تشدید", "unit": "percent", "applies_to_process_types": ["approval", "incident", "case-management"] },
+    { "slug": "cost-per-instance", "name_en": "Cost per Instance", "name_fa": "هزینه هر نمونه اجرا", "unit": "currency", "applies_to_process_types": ["procurement", "financial"] },
+    { "slug": "csat-score", "name_en": "Customer Satisfaction Score", "name_fa": "امتیاز رضایت مشتری", "unit": "score_1_5", "applies_to_process_types": ["customer-service"] },
+    { "slug": "time-to-fill", "name_en": "Time to Fill (Recruitment)", "name_fa": "زمان تکمیل استخدام", "unit": "days", "applies_to_process_types": ["hr"] },
+    { "slug": "time-to-productivity", "name_en": "Time to Productivity (Onboarding)", "name_fa": "زمان رسیدن به بهره‌وری", "unit": "days", "applies_to_process_types": ["onboarding"] },
+    { "slug": "vendor-otd-rate", "name_en": "Vendor On-Time Delivery Rate", "name_fa": "نرخ تحویل به‌موقع تأمین‌کننده", "unit": "percent", "applies_to_process_types": ["procurement"] },
+    { "slug": "three-way-match-exception-rate", "name_en": "Three-way Match Exception Rate", "name_fa": "نرخ استثنای تطبیق سه‌جانبه", "unit": "percent", "applies_to_process_types": ["financial"] },
+    { "slug": "audit-finding-closure-rate", "name_en": "Audit Finding Closure Rate", "name_fa": "نرخ بستن یافته‌های ممیزی", "unit": "percent", "applies_to_process_types": ["audit", "compliance"] },
+    { "slug": "asset-uptime", "name_en": "Asset Uptime", "name_fa": "زمان کارکرد دارایی", "unit": "percent", "applies_to_process_types": ["maintenance"] },
+    { "slug": "instance-volume", "name_en": "Instance Volume (per period)", "name_fa": "حجم اجرا (در بازه)", "unit": "count", "applies_to_process_types": ["request", "incident", "service"] },
+    { "slug": "automation-rate", "name_en": "Automation Rate (nodes without human touch)", "name_fa": "نرخ خودکارسازی", "unit": "percent", "applies_to_process_types": ["fulfillment", "financial"] },
+    { "slug": "abandonment-rate", "name_en": "Instance Abandonment/Cancellation Rate", "name_fa": "نرخ رهاسازی/لغو نمونه اجرا", "unit": "percent", "applies_to_process_types": ["request", "case-management"] }
+  ]
+}

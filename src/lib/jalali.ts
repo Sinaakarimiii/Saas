@@ -3,6 +3,7 @@ import persian from "react-date-object/calendars/persian";
 import persian_fa from "react-date-object/locales/persian_fa";
 import gregorian from "react-date-object/calendars/gregorian";
 import gregorian_en from "react-date-object/locales/gregorian_en";
+import { tehranISODate } from "./tehran-time";
 
 // Display-only Gregorian -> Jalali formatting. The database always stores
 // standard timestamptz/date values; this is purely for what the user sees.
@@ -31,8 +32,7 @@ export type JalaliYMD = { year: number; month: number; day: number };
 // up with the wrong calendar (numbers stay correct either way).
 
 export function todayJalali(): JalaliYMD {
-  const d = new DateObject({ calendar: persian, locale: persian_fa });
-  return { year: d.year, month: d.month.number, day: d.day };
+  return gregorianISODateToJalali(tehranISODate());
 }
 
 // Jalali y/m/d -> Gregorian ISO date string (YYYY-MM-DD), e.g. for querying

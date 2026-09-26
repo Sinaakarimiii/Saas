@@ -41,6 +41,7 @@ type ExistingRole = {
   id: string;
   name: string;
   isSystem: boolean;
+  managementRank: number;
   grants: Record<string, Scope | null>;
 };
 
@@ -48,15 +49,18 @@ export function RoleEditorDialog({
   orgId,
   permissionsCatalog,
   role,
+  maxRank,
   trigger,
 }: {
   orgId: string;
   permissionsCatalog: PermissionCatalogItem[];
   role?: ExistingRole;
+  maxRank: number;
   trigger: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(role?.name ?? "");
+  const [managementRank, setManagementRank] = useState(String(role?.managementRank ?? Math.max(0, maxRank - 1)));
   const [grants, setGrants] = useState<Record<string, { granted: boolean; scope: Scope | null }>>(
     () => {
       const initial: Record<string, { granted: boolean; scope: Scope | null }> = {};
@@ -99,7 +103,7 @@ export function RoleEditorDialog({
     });
 
     startTransition(async () => {
-      const result = await saveRole(orgId, role?.id ?? null, name, permissions);
+      const result = await saveRole(orgId, role?.id ?? null, name, Number(managementRank), permissions);
       if (result.error) {
         setError(result.error);
         return;
@@ -131,6 +135,20 @@ export function RoleEditorDialog({
               disabled={isSystem}
               placeholder="مثلاً کارشناس پشتیبانی"
             />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="role-rank">سطح مدیریتی</Label>
+            <Input
+              id="role-rank"
+              type="number"
+              min="0"
+              max={Math.max(0, maxRank - 1)}
+              value={managementRank}
+              onChange={(e) => setManagementRank(e.target.value)}
+              disabled={isSystem}
+            />
+            <p className="text-muted-foreground text-xs">فقط نقش‌های با سطح پایین‌تر قابل مدیریت هستند.</p>
           </div>
 
           <div className="grid gap-3">

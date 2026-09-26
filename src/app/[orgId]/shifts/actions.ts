@@ -25,7 +25,7 @@ async function assertCanManageShifts(orgId: string) {
 
 export async function createShiftTemplate(
   orgId: string,
-  input: { name: string; startTime: string; endTime: string },
+  input: { name: string; startTime: string; endTime: string; colorHex: string },
 ): Promise<ActionResult> {
   const check = await assertCanManageShifts(orgId);
   if (!check.ok) return { error: check.error };
@@ -33,12 +33,14 @@ export async function createShiftTemplate(
 
   const name = input.name.trim();
   if (!name) return { error: "نام قالب نمی‌تواند خالی باشد" };
+  if (!/^#[0-9A-Fa-f]{6}$/.test(input.colorHex)) return { error: "رنگ شیفت معتبر نیست" };
 
   const { error } = await supabase.from("shift_templates").insert({
     org_id: orgId,
     name,
     start_time: input.startTime,
     end_time: input.endTime,
+    color_hex: input.colorHex,
   });
 
   if (error) return { error: "ساخت قالب انجام نشد" };
@@ -52,12 +54,16 @@ export async function removeShiftTemplate(orgId: string, templateId: string): Pr
   if (!check.ok) return { error: check.error };
   const { supabase } = check;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("shift_templates")
     .update({ deleted_at: new Date().toISOString() })
-    .eq("id", templateId);
+    .eq("id", templateId)
+    .eq("org_id", orgId)
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
 
-  if (error) return { error: "حذف قالب انجام نشد" };
+  if (error || !data) return { error: "حذف قالب انجام نشد" };
 
   revalidatePath(`/${orgId}/shifts`);
   return { success: true };
@@ -73,6 +79,7 @@ export async function createShiftAssignment(
     startTime: string;
     endTime: string;
     note: string;
+    colorHex: string;
   },
 ): Promise<ActionResult> {
   const check = await assertCanManageShifts(orgId);
@@ -81,6 +88,7 @@ export async function createShiftAssignment(
 
   const title = input.title.trim();
   if (!title) return { error: "عنوان شیفت نمی‌تواند خالی باشد" };
+  if (!/^#[0-9A-Fa-f]{6}$/.test(input.colorHex)) return { error: "رنگ شیفت معتبر نیست" };
 
   const { error } = await supabase.from("shift_assignments").insert({
     org_id: orgId,
@@ -91,13 +99,14 @@ export async function createShiftAssignment(
     start_time: input.startTime,
     end_time: input.endTime,
     note: input.note || null,
+    color_hex: input.colorHex,
     created_by: user!.id,
   });
 
   if (error) return { error: "ثبت شیفت انجام نشد" };
 
   revalidatePath(`/${orgId}/shifts`);
-  revalidatePath(`/${orgId}/calendar/${input.workDate}`);
+  revalidatePath(`/${orgId}/calendar`);
   return { success: true };
 }
 
@@ -106,12 +115,16 @@ export async function removeShiftAssignment(orgId: string, assignmentId: string)
   if (!check.ok) return { error: check.error };
   const { supabase } = check;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("shift_assignments")
     .update({ deleted_at: new Date().toISOString() })
-    .eq("id", assignmentId);
+    .eq("id", assignmentId)
+    .eq("org_id", orgId)
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
 
-  if (error) return { error: "حذف شیفت انجام نشد" };
+  if (error || !data) return { error: "حذف شیفت انجام نشد" };
 
   revalidatePath(`/${orgId}/shifts`);
   return { success: true };

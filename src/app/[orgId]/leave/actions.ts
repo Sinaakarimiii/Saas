@@ -126,7 +126,7 @@ export async function reviewLeaveRequest(
   });
   if (!allowed) return { error: "شما دسترسی تایید مرخصی را ندارید" };
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("leave_requests")
     .update({
       status,
@@ -134,9 +134,12 @@ export async function reviewLeaveRequest(
       reviewed_at: new Date().toISOString(),
       review_note: reviewNote || null,
     })
-    .eq("id", requestId);
+    .eq("id", requestId)
+    .eq("org_id", orgId)
+    .select("id")
+    .maybeSingle();
 
-  if (error) return { error: "ثبت تصمیم انجام نشد" };
+  if (error || !data) return { error: "ثبت تصمیم انجام نشد" };
 
   revalidatePath(`/${orgId}/leave`);
   return { success: true };

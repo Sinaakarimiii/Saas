@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:biz-performance.blogspot.com)",
+      "WebFetch(domain:docs.nomagic.com)",
+      "WebFetch(domain:docs.camunda.io)",
+      "WebFetch(domain:docs.drools.org)",
+      "WebFetch(domain:help.salesforce.com)",
+      "WebFetch(domain:doc.workday.com)",
+      "WebFetch(domain:help.sap.com)"
+    ]
+  }
+}

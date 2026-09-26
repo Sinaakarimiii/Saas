@@ -27,7 +27,7 @@ import {
 const NO_TEMPLATE = "__none__";
 
 type Member = { id: string; label: string };
-type Template = { id: string; name: string; start_time: string; end_time: string };
+type Template = { id: string; name: string; start_time: string; end_time: string; color_hex: string };
 
 export function AssignShiftDialog({
   orgId,
@@ -50,6 +50,7 @@ export function AssignShiftDialog({
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("16:00");
   const [note, setNote] = useState("");
+  const [colorHex, setColorHex] = useState("#2563EB");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -72,6 +73,7 @@ export function AssignShiftDialog({
       setTitle(tpl.name);
       setStartTime(tpl.start_time.slice(0, 5));
       setEndTime(tpl.end_time.slice(0, 5));
+      setColorHex(tpl.color_hex);
     }
   }
 
@@ -94,6 +96,7 @@ export function AssignShiftDialog({
         startTime,
         endTime,
         note,
+        colorHex,
       });
       if (result.error) {
         setError(result.error);
@@ -133,6 +136,10 @@ export function AssignShiftDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="shift-color">رنگ نمایش</Label>
+            <Input id="shift-color" type="color" value={colorHex} onChange={(e) => setColorHex(e.target.value)} />
           </div>
 
           <div className="grid gap-2">

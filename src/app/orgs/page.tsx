@@ -20,12 +20,18 @@ export default async function OrgsPage() {
     redirect("/login");
   }
 
-  const { data: memberships } = await supabase
+  const { data: memberships, error: membershipsError } = await supabase
     .from("org_members")
     .select("org_id, organizations(id, name)")
     .eq("user_id", user.id)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
+
+  if (membershipsError) {
+    throw new Error("Could not load organization memberships", {
+      cause: membershipsError,
+    });
+  }
 
   const orgs = (memberships ?? [])
     .map((m) => m.organizations)

@@ -17,25 +17,33 @@ export async function getOrgContext(orgId: string) {
     redirect("/login");
   }
 
-  const { data: org } = await supabase
+  const { data: org, error: orgError } = await supabase
     .from("organizations")
     .select("id, name")
     .eq("id", orgId)
     .maybeSingle();
 
+  if (orgError) {
+    throw new Error("Could not load organization", { cause: orgError });
+  }
+
   if (!org) {
     redirect("/orgs");
   }
 
-  const { data: member } = await supabase
+  const { data: member, error: memberError } = await supabase
     .from("org_members")
-    .select("id, role_id, roles(name)")
+    .select("id, role_id, invitation_status, roles(name, is_system, system_key, management_rank)")
     .eq("org_id", orgId)
     .eq("user_id", user.id)
     .is("deleted_at", null)
     .maybeSingle();
 
-  if (!member) {
+  if (memberError) {
+    throw new Error("Could not load organization membership", { cause: memberError });
+  }
+
+  if (!member || member.invitation_status !== "active") {
     redirect("/orgs");
   }
 
@@ -56,6 +64,8 @@ export async function getOrgContext(orgId: string) {
     org,
     memberId: member.id,
     roleName: member.roles?.name ?? "",
+    isOwner: member.roles?.system_key === "owner",
+    roleRank: member.roles?.management_rank ?? 0,
     can(key: PermissionKey) {
       return scopes.has(key);
     },

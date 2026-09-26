@@ -48,6 +48,5 @@ export async function setDayStatus(
   if (error) return { error: "ثبت وضعیت روز انجام نشد" };
 
   revalidatePath(`/${orgId}/calendar`);
-  revalidatePath(`/${orgId}/calendar/${date}`);
   return { success: true };
 }

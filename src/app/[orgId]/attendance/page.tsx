@@ -1,7 +1,9 @@
 import { getOrgContext } from "@/lib/org-context";
 import { createClient } from "@/lib/supabase/server";
+import { tehranDayBounds, tehranISODate } from "@/lib/tehran-time";
+import { previousISODate, shiftSegmentForDay } from "@/lib/shift-day";
 import { PERMISSIONS } from "@/lib/permissions";
-import { formatJalaliDateTime, jalaliToGregorianISODate, todayJalali } from "@/lib/jalali";
+import { formatJalaliDateTime } from "@/lib/jalali";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -40,15 +42,8 @@ export default async function AttendancePage({
   const ctx = await getOrgContext(orgId);
   const supabase = await createClient();
 
-  const today = todayJalali();
-  const todayIso = jalaliToGregorianISODate(today);
-  // No trailing "Z" here on purpose: todayIso is a *local* calendar date, so
-  // it must be parsed as local wall-clock time and converted to its real UTC
-  // instant -- treating it as if it were already UTC midnight silently
-  // shifts the "today" window by the server's UTC offset (breaks for a few
-  // hours around local midnight in any timezone ahead of UTC, e.g. Iran).
-  const dayStart = new Date(`${todayIso}T00:00:00`).toISOString();
-  const dayEnd = new Date(`${todayIso}T23:59:59`).toISOString();
+  const todayIso = tehranISODate();
+  const { start: dayStart, end: dayEnd } = tehranDayBounds(todayIso);
 
   const { data: eventTypes } = await supabase
     .from("attendance_event_types")
@@ -64,6 +59,7 @@ export default async function AttendancePage({
     .eq("member_id", ctx.memberId)
     .is("voided_at", null)
     .gte("occurred_at", dayStart)
+    .lt("occurred_at", dayEnd)
     .order("occurred_at", { ascending: false });
 
   // Toggle-style events (e.g. جلسه/استراحت) don't have a separate "end"
@@ -91,9 +87,10 @@ export default async function AttendancePage({
           .is("deleted_at", null),
         supabase
           .from("shift_assignments")
-          .select("member_id")
+          .select("member_id, work_date, start_time, end_time")
           .eq("org_id", orgId)
-          .eq("work_date", todayIso)
+          .gte("work_date", previousISODate(todayIso))
+          .lte("work_date", todayIso)
           .is("deleted_at", null),
         supabase
           .from("leave_requests")
@@ -101,18 +98,25 @@ export default async function AttendancePage({
           .eq("org_id", orgId)
           .eq("status", "approved")
           .is("deleted_at", null)
-          .lte("starts_at", dayEnd)
-          .gte("ends_at", dayStart),
+          .lt("starts_at", dayEnd)
+          .gt("ends_at", dayStart),
         supabase
           .from("attendance_logs")
           .select("member_id, occurred_at, attendance_event_types(kind)")
           .eq("org_id", orgId)
           .is("voided_at", null)
           .gte("occurred_at", dayStart)
+          .lt("occurred_at", dayEnd)
           .order("occurred_at", { ascending: true }),
       ]);
 
-    const scheduledMemberIds = new Set((shifts ?? []).map((s) => s.member_id));
+    const scheduledMemberIds = new Set((shifts ?? [])
+      .filter((shift) => shiftSegmentForDay({
+        workDate: shift.work_date,
+        startTime: shift.start_time,
+        endTime: shift.end_time,
+      }, todayIso))
+      .map((shift) => shift.member_id));
     const onLeaveMemberIds = new Set((leaves ?? []).map((l) => l.member_id));
 
     const lastKindByMember = new Map<string, string>();

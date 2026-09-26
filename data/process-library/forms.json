@@ -1,0 +1,30 @@
+{
+  "$schema_note": "Generic reusable form catalog referenced by processes in sample-full-processes.json. field types align with the org_platform project's existing form_fields conventions (text/textarea/number/date_jalali/select/boolean/file) per project memory.",
+  "forms": [
+    { "slug": "leave-request-form", "name_en": "Leave Request Form", "name_fa": "فرم درخواست مرخصی", "fields": ["leave_type", "start_date", "end_date", "reason", "attachment"] },
+    { "slug": "purchase-requisition-form", "name_en": "Purchase Requisition Form", "name_fa": "فرم درخواست خرید", "fields": ["item_description", "quantity", "estimated_amount", "cost_center", "needed_by_date"] },
+    { "slug": "expense-claim-form", "name_en": "Expense Claim Form", "name_fa": "فرم درخواست هزینه", "fields": ["expense_category", "amount", "expense_date", "receipt_attachment", "justification"] },
+    { "slug": "onboarding-intake-form", "name_en": "Onboarding Intake Form", "name_fa": "فرم اطلاعات ورود کارمند", "fields": ["personal_info", "emergency_contact", "bank_details", "equipment_needs"] },
+    { "slug": "offboarding-checklist-form", "name_en": "Offboarding Checklist Form", "name_fa": "فرم چک‌لیست خروج", "fields": ["last_working_day", "reason_for_leaving", "asset_return_confirmed", "knowledge_transfer_notes"] },
+    { "slug": "job-requisition-form", "name_en": "Job Requisition Form", "name_fa": "فرم درخواست نیرو", "fields": ["position_title", "department", "headcount", "salary_range", "justification"] },
+    { "slug": "training-enrollment-form", "name_en": "Training Enrollment Form", "name_fa": "فرم ثبت‌نام آموزش", "fields": ["course_name", "delivery_mode", "requested_date"] },
+    { "slug": "incident-report-form", "name_en": "Incident Report Form", "name_fa": "فرم گزارش حادثه", "fields": ["severity", "affected_service", "description", "detected_at"] },
+    { "slug": "change-request-form", "name_en": "Change Request Form", "name_fa": "فرم درخواست تغییر", "fields": ["change_type", "risk_level", "implementation_plan", "backout_plan", "scheduled_window"] },
+    { "slug": "access-request-form", "name_en": "Access Request Form", "name_fa": "فرم درخواست دسترسی", "fields": ["system_name", "access_level", "business_justification", "duration"] },
+    { "slug": "asset-request-form", "name_en": "Asset Request Form", "name_fa": "فرم درخواست دارایی", "fields": ["asset_type", "specification", "justification"] },
+    { "slug": "vendor-registration-form", "name_en": "Vendor Registration Form", "name_fa": "فرم ثبت‌نام تأمین‌کننده", "fields": ["company_name", "tax_id", "bank_details", "category"] },
+    { "slug": "rfq-request-form", "name_en": "RFQ Request Form", "name_fa": "فرم درخواست استعلام قیمت", "fields": ["item_list", "delivery_terms", "closing_date"] },
+    { "slug": "invoice-submission-form", "name_en": "Invoice Submission Form", "name_fa": "فرم ثبت فاکتور", "fields": ["invoice_number", "vendor", "amount", "po_reference", "attachment"] },
+    { "slug": "budget-request-form", "name_en": "Budget Request Form", "name_fa": "فرم درخواست بودجه", "fields": ["cost_center", "amount", "fiscal_period", "justification"] },
+    { "slug": "quote-approval-form", "name_en": "Quote Approval Form", "name_fa": "فرم تأیید پیش‌فاکتور", "fields": ["customer", "deal_value", "discount_percent", "product_list"] },
+    { "slug": "customer-onboarding-form", "name_en": "Customer Onboarding Form", "name_fa": "فرم ورود مشتری", "fields": ["company_name", "contract_reference", "primary_contact", "kickoff_date"] },
+    { "slug": "complaint-intake-form", "name_en": "Complaint Intake Form", "name_fa": "فرم ثبت شکایت", "fields": ["complaint_category", "description", "desired_resolution"] },
+    { "slug": "refund-request-form", "name_en": "Refund Request Form", "name_fa": "فرم درخواست بازگشت وجه", "fields": ["order_reference", "reason", "amount", "refund_method"] },
+    { "slug": "csat-survey-form", "name_en": "CSAT Survey Form", "name_fa": "فرم نظرسنجی رضایت مشتری", "fields": ["rating", "comment"] },
+    { "slug": "contract-review-request-form", "name_en": "Contract Review Request Form", "name_fa": "فرم درخواست بازبینی قرارداد", "fields": ["contract_type", "counterparty", "value", "attachment"] },
+    { "slug": "nda-request-form", "name_en": "NDA Request Form", "name_fa": "فرم درخواست توافق‌نامه محرمانگی", "fields": ["counterparty_name", "nda_type", "purpose"] },
+    { "slug": "audit-finding-form", "name_en": "Audit Finding Form", "name_fa": "فرم یافته ممیزی", "fields": ["finding_description", "risk_rating", "evidence_attachment"] },
+    { "slug": "policy-exception-request-form", "name_en": "Policy Exception Request Form", "name_fa": "فرم درخواست استثنای سیاست", "fields": ["policy_reference", "justification", "requested_duration", "compensating_controls"] },
+    { "slug": "maintenance-request-form", "name_en": "Maintenance Request Form", "name_fa": "فرم درخواست تعمیر و نگهداری", "fields": ["asset_or_location", "issue_description", "urgency", "photo_attachment"] }
+  ]
+}

@@ -27,6 +27,24 @@ function statusBadge(status: string) {
   return <Badge variant="secondary">در انتظار</Badge>;
 }
 
+function managedMemberIds(
+  members: { id: string; manager_id: string | null }[],
+  managerId: string,
+) {
+  const ids = new Set<string>();
+  const queue = [managerId];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const member of members) {
+      if (member.manager_id === current && !ids.has(member.id)) {
+        ids.add(member.id);
+        queue.push(member.id);
+      }
+    }
+  }
+  return ids;
+}
+
 export default async function LeavePage({
   params,
 }: PageProps<"/[orgId]/leave">) {
@@ -53,6 +71,8 @@ export default async function LeavePage({
     .order("created_at", { ascending: false });
 
   const canApprove = ctx.can(PERMISSIONS.LEAVE_APPROVE);
+  const approvalScope = ctx.scopeOf(PERMISSIONS.LEAVE_APPROVE);
+  const canManageLeaveTypes = approvalScope === "all";
   const [{ data: pending }, { data: allMembers }] = canApprove
     ? await Promise.all([
         supabase
@@ -66,13 +86,18 @@ export default async function LeavePage({
           .order("created_at", { ascending: true }),
         supabase
           .from("org_members")
-          .select("id, profiles(full_name, email)")
+          .select("id, manager_id, profiles(full_name, email)")
           .eq("org_id", orgId)
           .is("deleted_at", null),
       ])
     : [{ data: [] }, { data: [] }];
 
-  const memberOptions = (allMembers ?? []).map((m) => ({
+  const managedIds = approvalScope === "team"
+    ? managedMemberIds(allMembers ?? [], ctx.memberId)
+    : null;
+  const memberOptions = (allMembers ?? [])
+    .filter((m) => managedIds === null || managedIds.has(m.id))
+    .map((m) => ({
     id: m.id,
     label: m.profiles?.full_name || m.profiles?.email || "—",
   }));
@@ -82,7 +107,7 @@ export default async function LeavePage({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">مرخصی</h1>
         <div className="flex gap-2">
-          {canApprove && <NewLeaveTypeDialog orgId={orgId} />}
+          {canManageLeaveTypes && <NewLeaveTypeDialog orgId={orgId} />}
           {canApprove && (
             <CreateLeaveForMemberDialog
               orgId={orgId}

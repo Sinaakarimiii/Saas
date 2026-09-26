@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit --incremental false",
+    "test:time": "node --experimental-strip-types --test scripts/verify-tehran-time.mjs",
+    "test:holidays": "node --experimental-strip-types scripts/verify-holiday-pagination.mjs",
+    "test:invite": "node scripts/verify-invite-stage3.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.0",

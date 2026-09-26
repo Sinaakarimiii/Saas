@@ -1,0 +1,22 @@
+{
+  "documents": [
+    { "slug": "employee-handbook", "name_en": "Employee Handbook", "name_fa": "دفترچه راهنمای کارمند", "category": "hr" },
+    { "slug": "nda", "name_en": "Non-Disclosure Agreement", "name_fa": "توافق‌نامه محرمانگی", "category": "legal" },
+    { "slug": "offer-letter", "name_en": "Offer Letter", "name_fa": "نامه پیشنهاد شغلی", "category": "hr" },
+    { "slug": "purchase-order-doc", "name_en": "Purchase Order", "name_fa": "سند سفارش خرید", "category": "procurement" },
+    { "slug": "invoice-doc", "name_en": "Invoice", "name_fa": "فاکتور", "category": "finance" },
+    { "slug": "goods-receipt-note", "name_en": "Goods Receipt Note", "name_fa": "رسید کالا", "category": "procurement" },
+    { "slug": "contract-doc", "name_en": "Contract", "name_fa": "قرارداد", "category": "legal" },
+    { "slug": "vendor-bank-verification-letter", "name_en": "Bank Verification Letter", "name_fa": "نامه تأیید حساب بانکی", "category": "procurement" },
+    { "slug": "incident-report-doc", "name_en": "Incident Report", "name_fa": "گزارش حادثه", "category": "it" },
+    { "slug": "change-record-doc", "name_en": "Change Record", "name_fa": "سند ثبت تغییر", "category": "it" },
+    { "slug": "audit-report-doc", "name_en": "Audit Report", "name_fa": "گزارش ممیزی", "category": "compliance" },
+    { "slug": "corrective-action-plan-doc", "name_en": "Corrective Action Plan", "name_fa": "سند طرح اقدام اصلاحی", "category": "compliance" },
+    { "slug": "known-error-article", "name_en": "Known Error Article", "name_fa": "مقاله خطای شناخته‌شده", "category": "it" },
+    { "slug": "work-order-doc", "name_en": "Work Order", "name_fa": "سند دستور کار", "category": "facilities" },
+    { "slug": "osha-form-301", "name_en": "OSHA Form 301", "name_fa": "فرم ۳۰۱ سازمان ایمنی شغلی آمریکا", "category": "facilities" },
+    { "slug": "performance-review-record", "name_en": "Performance Review Record", "name_fa": "سند ارزیابی عملکرد", "category": "hr" },
+    { "slug": "quote-document", "name_en": "Sales Quote", "name_fa": "پیش‌فاکتور فروش", "category": "sales" },
+    { "slug": "policy-document", "name_en": "Policy Document", "name_fa": "سند سیاست سازمانی", "category": "compliance" }
+  ]
+}

@@ -12,6 +12,9 @@ export default async function OrgLayout({
   const navItems = [
     { href: "/dashboard", label: "خانه" },
     { href: "/tickets", label: "تیکت‌ها" },
+    ...(ctx.can(PERMISSIONS.REPAIR_CASE_VIEW)
+      ? [{ href: "/repairs", label: "تعمیرات" }]
+      : []),
     { href: "/calendar", label: "تقویم" },
     ...(ctx.can(PERMISSIONS.SHIFT_MANAGE)
       ? [{ href: "/shifts", label: "شیفت‌ها" }]
@@ -34,14 +37,14 @@ export default async function OrgLayout({
   ];
 
   return (
-    <div className="flex min-h-full flex-1">
+    <div className="flex min-h-full flex-1 flex-col md:flex-row">
       <OrgSidebar
         orgId={orgId}
         orgName={ctx.org.name}
         roleName={ctx.roleName}
         navItems={navItems}
       />
-      <main className="flex-1 overflow-x-hidden p-6">{children}</main>
+      <main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6">{children}</main>
     </div>
   );
 }

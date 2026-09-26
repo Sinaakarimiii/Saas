@@ -1,0 +1,29 @@
+{
+  "$schema_note": "Generic, reusable Process-Builder roles — distinct from an organization's actual org_members/roles rows. These are template-level role placeholders resolved to real users at runtime via assignment_rules (docs/process-research/13-role-assignment-model.md).",
+  "roles": [
+    { "slug": "requester", "name_en": "Requester", "name_fa": "درخواست‌دهنده", "description_en": "The actor who initiated the instance." },
+    { "slug": "supervisor", "name_en": "Supervisor", "name_fa": "سرپرست", "description_en": "First-line approver, typically the requester's direct manager." },
+    { "slug": "manager", "name_en": "Manager", "name_fa": "مدیر", "description_en": "Department or team manager, second approval tier." },
+    { "slug": "director", "name_en": "Director", "name_fa": "مدیر ارشد", "description_en": "Senior approval tier for high-value/high-risk requests." },
+    { "slug": "executive", "name_en": "Executive (CFO/CEO)", "name_fa": "مدیرعامل/مدیر مالی ارشد", "description_en": "Final tier for enterprise-level decisions." },
+    { "slug": "process-owner", "name_en": "Process Owner", "name_fa": "مالک فرایند", "description_en": "Owns the template definition, not necessarily involved per-instance." },
+    { "slug": "hr-admin", "name_en": "HR Administrator", "name_fa": "کارشناس منابع انسانی", "description_en": "Handles HR-domain fulfillment steps." },
+    { "slug": "it-admin", "name_en": "IT Administrator", "name_fa": "کارشناس فناوری اطلاعات", "description_en": "Handles IT-domain provisioning/fulfillment steps." },
+    { "slug": "finance-admin", "name_en": "Finance Administrator", "name_fa": "کارشناس مالی", "description_en": "Handles finance-domain processing steps." },
+    { "slug": "procurement-officer", "name_en": "Procurement Officer", "name_fa": "کارشناس تدارکات", "description_en": "Handles sourcing/vendor/PO steps." },
+    { "slug": "legal-counsel", "name_en": "Legal Counsel", "name_fa": "مشاور حقوقی", "description_en": "Reviews/approves legal-domain artifacts." },
+    { "slug": "compliance-officer", "name_en": "Compliance Officer", "name_fa": "مسئول انطباق", "description_en": "Reviews policy-exception and compliance processes." },
+    { "slug": "auditor", "name_en": "Auditor", "name_fa": "ممیز", "description_en": "Performs audit reviews, independent of line management." },
+    { "slug": "customer", "name_en": "Customer", "name_fa": "مشتری", "description_en": "External actor, typically a portal/limited-access participant." },
+    { "slug": "vendor-supplier", "name_en": "Vendor / Supplier", "name_fa": "تأمین‌کننده", "description_en": "External actor in procurement processes." },
+    { "slug": "technician", "name_en": "Technician", "name_fa": "تکنسین", "description_en": "Executes maintenance/repair work orders." },
+    { "slug": "quality-inspector", "name_en": "Quality Inspector", "name_fa": "بازرس کیفیت", "description_en": "Performs inspection processes." },
+    { "slug": "deal-desk", "name_en": "Deal Desk", "name_fa": "میز معامله", "description_en": "Validates complex sales quotes against booking policy." },
+    { "slug": "recruiter", "name_en": "Recruiter", "name_fa": "کارشناس استخدام", "description_en": "Owns recruitment-domain steps." },
+    { "slug": "hiring-manager", "name_en": "Hiring Manager", "name_fa": "مدیر استخدام‌کننده", "description_en": "Requests and approves hiring decisions." },
+    { "slug": "service-desk-agent", "name_en": "Service Desk Agent", "name_fa": "کارشناس میز خدمت", "description_en": "First-line ITSM/support triage." },
+    { "slug": "incident-manager", "name_en": "Incident Manager", "name_fa": "مدیر حادثه", "description_en": "Coordinates major incident response." },
+    { "slug": "change-advisory-board", "name_en": "Change Advisory Board (CAB)", "name_fa": "شورای بررسی تغییرات", "description_en": "Reviews/authorizes normal changes." },
+    { "slug": "delegate", "name_en": "Delegate", "name_fa": "جانشین", "description_en": "Temporary stand-in for an unavailable assignee." }
+  ]
+}

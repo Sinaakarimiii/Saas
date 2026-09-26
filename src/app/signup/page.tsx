@@ -48,24 +48,28 @@ export default function SignupPage() {
 
   async function onSubmit(values: FormValues) {
     setServerError(null);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
-      email: values.email,
-      password: values.password,
-      options: { data: { full_name: values.fullName, phone: values.phone } },
-    });
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: { data: { full_name: values.fullName, phone: values.phone } },
+      });
 
-    if (error) {
-      setServerError(
-        error.message === "User already registered"
-          ? "این ایمیل قبلاً ثبت‌نام کرده — وارد شوید."
-          : "ثبت‌نام انجام نشد. دوباره تلاش کنید.",
-      );
-      return;
+      if (error) {
+        setServerError(
+          error.message === "User already registered"
+            ? "این ایمیل قبلاً ثبت‌نام کرده — وارد شوید."
+            : "ثبت‌نام انجام نشد. دوباره تلاش کنید.",
+        );
+        return;
+      }
+
+      router.push("/orgs");
+      router.refresh();
+    } catch {
+      setServerError("ارتباط با سرویس ثبت‌نام برقرار نشد. دوباره تلاش کنید.");
     }
-
-    router.push("/orgs");
-    router.refresh();
   }
 
   return (
@@ -80,6 +84,7 @@ export default function SignupPage() {
         <CardContent>
           <Form {...form}>
             <form
+              method="post"
               onSubmit={form.handleSubmit(onSubmit)}
               className="grid gap-4"
             >

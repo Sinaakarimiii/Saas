@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getOrgContext } from "@/lib/org-context";
 import { PERMISSIONS } from "@/lib/permissions";
 
 export type PermissionInput = {
@@ -16,6 +17,7 @@ export async function saveRole(
   orgId: string,
   roleId: string | null,
   name: string,
+  managementRank: number,
   permissions: PermissionInput[],
 ): Promise<ActionResult> {
   const supabase = await createClient();
@@ -26,11 +28,8 @@ export async function saveRole(
     return { error: "ابتدا وارد شوید" };
   }
 
-  const { data: allowed } = await supabase.rpc("has_permission", {
-    p_org_id: orgId,
-    p_permission_key: PERMISSIONS.MANAGE_ROLES,
-  });
-  if (!allowed) {
+  const ctx = await getOrgContext(orgId);
+  if (!ctx.can(PERMISSIONS.MANAGE_ROLES)) {
     return { error: "شما دسترسی مدیریت نقش‌ها را ندارید" };
   }
 
@@ -38,49 +37,52 @@ export async function saveRole(
   if (!trimmedName) {
     return { error: "نام نقش نمی‌تواند خالی باشد" };
   }
-
-  let finalRoleId = roleId;
-
-  if (!finalRoleId) {
-    const { data: newRole, error: insertError } = await supabase
-      .from("roles")
-      .insert({ org_id: orgId, name: trimmedName })
-      .select("id")
-      .single();
-    if (insertError || !newRole) {
-      return {
-        error:
-          insertError?.code === "23505"
-            ? "نقشی با این نام از قبل وجود دارد"
-            : "ساخت نقش انجام نشد",
-      };
-    }
-    finalRoleId = newRole.id;
-  } else {
-    const { error: updateError } = await supabase
-      .from("roles")
-      .update({ name: trimmedName })
-      .eq("id", finalRoleId)
-      .eq("org_id", orgId);
-    if (updateError) {
-      return {
-        error: "ویرایش نقش انجام نشد (نقش‌های سیستمی قابل ویرایش نیستند)",
-      };
-    }
+  if (!Number.isInteger(managementRank) || managementRank < 0 || managementRank >= ctx.roleRank) {
+    return { error: "سطح مدیریتی نقش باید کمتر از سطح نقش شما باشد" };
   }
 
   const payload = permissions
     .filter((p) => p.granted)
     .map((p) => ({ key: p.key, scope: p.scope }));
 
-  const { error: permError } = await supabase.rpc("set_role_permissions", {
-    p_role_id: finalRoleId,
+  const { error } = await supabase.rpc("save_role", {
+    p_org_id: orgId,
+    p_role_id: roleId,
+    p_name: trimmedName,
+    p_management_rank: managementRank,
     p_permissions: payload,
   });
-  if (permError) {
-    return { error: "ذخیره‌ی دسترسی‌ها انجام نشد" };
+  if (error) {
+    return {
+      error: error.code === "23505" ? "نقشی با این نام از قبل وجود دارد" : "ذخیره‌ی نقش انجام نشد",
+    };
   }
 
   revalidatePath(`/${orgId}/roles`);
+  return { success: true };
+}
+
+export async function setRoleInvitationApproval(
+  orgId: string,
+  roleId: string,
+  approved: boolean,
+): Promise<ActionResult> {
+  const ctx = await getOrgContext(orgId);
+  if (!ctx.isOwner) return { error: "فقط مالک می‌تواند نقش دعوت را تأیید کند" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("roles")
+    .update({ manager_invitable: approved })
+    .eq("org_id", orgId)
+    .eq("id", roleId)
+    .eq("is_system", false)
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) return { error: "تغییر تأیید نقش انجام نشد" };
+
+  revalidatePath(`/${orgId}/roles`);
+  revalidatePath(`/${orgId}/members`);
   return { success: true };
 }

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { tehranMidnightUTC } from "@/lib/tehran-time";
 
 const HOUR_HEIGHT_PX = 40;
 const MINUTES_IN_DAY = 24 * 60;
@@ -9,6 +10,10 @@ export type TimelineShift = {
   title: string;
   startTime: string; // "HH:MM:SS"
   endTime: string;
+  startMinute: number;
+  endMinute: number;
+  continuesFromPreviousDay: boolean;
+  colorHex: string;
 };
 
 export type TimelineLeave = {
@@ -18,15 +23,10 @@ export type TimelineLeave = {
   endsAt: string; // timestamptz
 };
 
-function timeStringToMinutes(hhmmss: string): number {
-  const [h, m] = hhmmss.split(":").map(Number);
-  return h * 60 + m;
-}
-
 // Position of a timestamptz within the given Gregorian ISO day, clipped to
 // [0, 1440] so multi-day leave still renders sensibly on this one day's grid.
 function minutesWithinDay(iso: string, dayIso: string): number {
-  const dayStart = new Date(`${dayIso}T00:00:00`);
+  const dayStart = tehranMidnightUTC(dayIso);
   const diff = Math.round((new Date(iso).getTime() - dayStart.getTime()) / 60000);
   return Math.min(MINUTES_IN_DAY, Math.max(0, diff));
 }
@@ -59,12 +59,10 @@ export function DayTimeline({
   leaves: TimelineLeave[];
 }) {
   const sortedShifts = [...shifts].sort(
-    (a, b) => timeStringToMinutes(a.startTime) - timeStringToMinutes(b.startTime),
+    (a, b) => a.startMinute - b.startMinute,
   );
   const shiftRanges = sortedShifts.map((s) => {
-    const start = timeStringToMinutes(s.startTime);
-    const end = Math.max(start + 15, timeStringToMinutes(s.endTime));
-    return { start, end };
+    return { start: s.startMinute, end: s.endMinute };
   });
   const lanes = assignLanes(shiftRanges);
   const laneCount = Math.max(1, ...lanes.map((l) => l + 1));
@@ -122,19 +120,21 @@ export function DayTimeline({
           return (
             <div
               key={s.id}
-              className={cn(
-                "bg-primary/15 border-primary/40 absolute overflow-hidden rounded border px-1.5 py-0.5",
-              )}
+              className={cn("absolute overflow-hidden rounded border px-1.5 py-0.5")}
               style={{
                 top: toPx(range.start),
                 height: Math.max(20, toPx(range.end - range.start)),
                 insetInlineStart: `${(lane / laneCount) * 100}%`,
                 width: `${100 / laneCount}%`,
+                backgroundColor: `${s.colorHex}26`,
+                borderColor: `${s.colorHex}80`,
               }}
               title={`${s.memberLabel} — ${s.title} (${s.startTime.slice(0, 5)}–${s.endTime.slice(0, 5)})`}
             >
               <p className="truncate font-medium">{s.memberLabel}</p>
-              <p className="text-muted-foreground truncate">{s.title}</p>
+              <p className="text-muted-foreground truncate">
+                {s.continuesFromPreviousDay ? "ادامهٔ شیفت شب: " : ""}{s.title}
+              </p>
             </div>
           );
         })}

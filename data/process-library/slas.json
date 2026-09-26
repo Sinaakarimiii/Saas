@@ -1,0 +1,28 @@
+{
+  "$schema_note": "Common SLA policy templates. hours_basis: business = counted against a schedule (see docs/process-research/12-sla-and-escalation.md), calendar = wall-clock.",
+  "sla_templates": [
+    { "slug": "standard-approval-sla", "name_en": "Standard Approval SLA", "name_fa": "SLA استاندارد تأیید", "target_metric": "first_response", "duration_hours": 24, "hours_basis": "business", "source_reference": "Generic pattern derived from Concur/NetSuite approval routing" },
+    { "slug": "urgent-approval-sla", "name_en": "Urgent Approval SLA", "name_fa": "SLA فوری تأیید", "target_metric": "first_response", "duration_hours": 4, "hours_basis": "business", "source_reference": "Generic pattern" },
+    { "slug": "incident-p1-response", "name_en": "P1 Incident First Response", "name_fa": "اولین پاسخ حادثه بحرانی (P1)", "target_metric": "first_response", "duration_hours": 0.25, "hours_basis": "calendar", "source_reference": "ServiceNow Major Incident practice" },
+    { "slug": "incident-p1-resolution", "name_en": "P1 Incident Resolution", "name_fa": "حل حادثه بحرانی (P1)", "target_metric": "resolution", "duration_hours": 4, "hours_basis": "calendar", "source_reference": "ServiceNow Major Incident practice" },
+    { "slug": "incident-p3-resolution", "name_en": "P3 Incident Resolution", "name_fa": "حل حادثه با اولویت متوسط (P3)", "target_metric": "resolution", "duration_hours": 48, "hours_basis": "business", "source_reference": "Generic ITSM priority matrix" },
+    { "slug": "service-request-fulfillment-sla", "name_en": "Standard Service Request Fulfillment", "name_fa": "SLA استاندارد تحقق درخواست خدمت", "target_metric": "resolution", "duration_hours": 72, "hours_basis": "business", "source_reference": "Generic ITSM catalog pattern" },
+    { "slug": "osha-fatality-report", "name_en": "OSHA Fatality Report Deadline", "name_fa": "مهلت گزارش فوت (OSHA)", "target_metric": "resolution", "duration_hours": 8, "hours_basis": "calendar", "source_reference": "OSHA recordkeeping regulation (verified, SafetyIQ/Innovapptive)" },
+    { "slug": "osha-hospitalization-report", "name_en": "OSHA Hospitalization/Amputation Report Deadline", "name_fa": "مهلت گزارش بستری/قطع‌عضو (OSHA)", "target_metric": "resolution", "duration_hours": 24, "hours_basis": "calendar", "source_reference": "OSHA recordkeeping regulation" },
+    { "slug": "osha-standard-recordable-report", "name_en": "OSHA Standard Recordable Report Deadline", "name_fa": "مهلت گزارش استاندارد قابل‌ثبت (OSHA)", "target_metric": "resolution", "duration_hours": 168, "hours_basis": "calendar", "source_reference": "OSHA recordkeeping regulation (7 calendar days)" },
+    { "slug": "csat-survey-link-validity", "name_en": "CSAT Survey Link Validity Window", "name_fa": "بازه اعتبار لینک نظرسنجی رضایت", "target_metric": "resolution", "duration_hours": 672, "hours_basis": "calendar", "source_reference": "Zendesk CSAT (28 days)" },
+    { "slug": "contract-review-sla", "name_en": "Legal Contract Review SLA", "name_fa": "SLA بازبینی قرارداد حقوقی", "target_metric": "resolution", "duration_hours": 24, "hours_basis": "business", "source_reference": "DocuSign CLM (3 business days typical)" },
+    { "slug": "expense-reimbursement-sla", "name_en": "Expense Reimbursement Processing SLA", "name_fa": "SLA پردازش بازپرداخت هزینه", "target_metric": "resolution", "duration_hours": 120, "hours_basis": "business", "source_reference": "Generic AP processing pattern" }
+  ],
+  "escalation_templates": [
+    { "slug": "three-level-approval-escalation", "name_en": "Three-Level Approval Escalation", "name_fa": "تشدید سه‌سطحی تأیید", "levels": [
+      { "level": 1, "trigger_after_hours": 24, "action": "notify" },
+      { "level": 2, "trigger_after_hours": 48, "action": "reassign_and_notify", "target_role_slug": "manager" },
+      { "level": 3, "trigger_after_hours": 72, "action": "reassign_and_notify", "target_role_slug": "director" }
+    ]},
+    { "slug": "incident-major-escalation", "name_en": "Major Incident Escalation", "name_fa": "تشدید حادثه بحرانی", "levels": [
+      { "level": 1, "trigger_after_hours": 0.5, "action": "notify", "target_role_slug": "incident-manager" },
+      { "level": 2, "trigger_after_hours": 2, "action": "reassign_and_notify", "target_role_slug": "director" }
+    ]}
+  ]
+}

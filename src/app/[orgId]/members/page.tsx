@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { InviteMemberDialog } from "./invite-dialog";
 import { EditMemberDialog } from "./edit-member-dialog";
+import { TransferOwnershipDialog } from "./transfer-ownership-dialog";
 
 type MemberNode = {
   id: string;
@@ -81,22 +82,33 @@ export default async function MembersPage({
   const [{ data: members }, { data: roles }] = await Promise.all([
     supabase
       .from("org_members")
-      .select("id, created_at, role_id, manager_id, profiles(full_name, email), roles(name)")
+      .select("id, created_at, role_id, manager_id, work_mode, invitation_status, profiles(full_name, email), roles(name, is_system)")
       .eq("org_id", orgId)
       .is("deleted_at", null)
       .order("created_at", { ascending: true }),
     supabase
       .from("roles")
-      .select("id, name")
+      .select("id, name, is_system, manager_invitable")
       .eq("org_id", orgId)
       .is("deleted_at", null)
       .order("created_at", { ascending: true }),
   ]);
 
-  const memberOptions = (members ?? []).map((m) => ({
+  const memberOptions = (members ?? []).filter((m) => m.invitation_status === "active").map((m) => ({
     id: m.id,
     label: m.profiles?.full_name || m.profiles?.email || "—",
   }));
+
+  const nonOwnerRoles = (roles ?? []).filter((r) => !r.is_system);
+  const invitationRoles = nonOwnerRoles
+    .filter((r) => ctx.isOwner || r.manager_invitable)
+    .map((r) => ({ id: r.id, name: r.name }));
+  const successorOptions = (members ?? [])
+    .filter((m) => m.invitation_status === "active" && !m.roles?.is_system && m.id !== ctx.memberId)
+    .map((m) => ({
+      id: m.id,
+      label: m.profiles?.full_name || m.profiles?.email || "—",
+    }));
 
   const treeNodes: MemberNode[] = (members ?? []).map((m) => ({
     id: m.id,
@@ -110,7 +122,16 @@ export default async function MembersPage({
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">اعضا</h1>
-        <InviteMemberDialog orgId={orgId} roles={roles ?? []} members={memberOptions} />
+        <div className="flex gap-2">
+          {ctx.isOwner && successorOptions.length > 0 && nonOwnerRoles.length > 0 && (
+            <TransferOwnershipDialog
+              orgId={orgId}
+              successors={successorOptions}
+              replacementRoles={nonOwnerRoles.map((r) => ({ id: r.id, name: r.name }))}
+            />
+          )}
+          <InviteMemberDialog orgId={orgId} roles={invitationRoles} members={memberOptions} />
+        </div>
       </div>
 
       <Table>
@@ -119,7 +140,9 @@ export default async function MembersPage({
             <TableHead>نام</TableHead>
             <TableHead>ایمیل</TableHead>
             <TableHead>نقش</TableHead>
+            <TableHead>وضعیت دعوت</TableHead>
             <TableHead>سرپرست</TableHead>
+            <TableHead>برنامهٔ کاری</TableHead>
             <TableHead>عضو از</TableHead>
             <TableHead />
           </TableRow>
@@ -135,18 +158,30 @@ export default async function MembersPage({
                 <Badge variant="secondary">{m.roles?.name}</Badge>
               </TableCell>
               <TableCell>
+                {m.invitation_status === "active"
+                  ? "فعال"
+                  : m.invitation_status === "pending"
+                    ? "در انتظار تأیید"
+                    : "ارسال ناموفق"}
+              </TableCell>
+              <TableCell>
                 {memberOptions.find((o) => o.id === m.manager_id)?.label || "—"}
+              </TableCell>
+              <TableCell>
+                {m.work_mode === "shift" ? "شیفتی" : m.work_mode === "fixed" ? "ثابت" : "—"}
               </TableCell>
               <TableCell>{formatJalaliDate(m.created_at)}</TableCell>
               <TableCell>
-                <EditMemberDialog
+                {(ctx.isOwner || !m.roles?.is_system) && <EditMemberDialog
                   orgId={orgId}
                   memberId={m.id}
                   currentRoleId={m.role_id}
                   currentManagerId={m.manager_id}
-                  roles={roles ?? []}
+                  currentWorkMode={m.work_mode as "unspecified" | "shift" | "fixed"}
+                  roles={nonOwnerRoles}
                   members={memberOptions}
-                />
+                  canChangeRole={ctx.isOwner && !m.roles?.is_system}
+                />}
               </TableCell>
             </TableRow>
           ))}

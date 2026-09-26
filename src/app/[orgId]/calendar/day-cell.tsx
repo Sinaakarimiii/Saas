@@ -38,9 +38,11 @@ export function DayCell({
   overrideNote,
   occasions,
   hasLeave,
+  hasShift,
   isToday,
   canManageDays,
   size = "default",
+  weekdayLabel,
 }: {
   orgId: string;
   iso: string;
@@ -53,9 +55,12 @@ export function DayCell({
   overrideNote: string | null;
   occasions: { title: string }[];
   hasLeave: boolean;
+  hasShift: boolean;
   isToday: boolean;
   canManageDays: boolean;
-  size?: "default" | "sm";
+  size?: "default" | "sm" | "lg";
+  /** Weekday name shown above the day number -- week view only, where there's no separate header row. */
+  weekdayLabel?: string;
 }) {
   // Something to open a dialog for: a real occasion, or a manual override
   // (so anyone can see why/who changed it, even with no occasion that day).
@@ -73,23 +78,32 @@ export function DayCell({
   return (
     <div className="relative">
       <Link
-        href={`/${orgId}/calendar/${iso}`}
+        href={`/${orgId}/calendar?view=day&date=${iso}`}
         className={cn(
           "flex flex-col items-center gap-0.5 rounded-(--glass-radius) [border:var(--glass-hairline)] p-1.5 pt-4 transition-colors hover:brightness-95",
           DAY_STATUS_TINT_CLASS[status],
-          size === "default" ? "min-h-16" : "min-h-12",
+          size === "sm" && "min-h-12",
+          size === "default" && "min-h-16",
+          size === "lg" && "min-h-28 gap-1",
           isToday && "ring-2 ring-(--accent)",
         )}
       >
+        {weekdayLabel && (
+          <span className="text-xs text-(--text-muted)">{weekdayLabel}</span>
+        )}
         <span
           className={cn(
-            "flex items-center gap-1 text-sm font-semibold",
+            "flex items-center gap-1 font-semibold",
+            size === "lg" ? "text-lg" : "text-sm",
             DAY_STATUS_TEXT_CLASS[status],
           )}
         >
           {toPersianDigits(jalaliDay)}
           {hasLeave && (
             <span className="inline-block size-1.5 rounded-full bg-(--neutral)" title="مرخصی" />
+          )}
+          {hasShift && (
+            <span className="inline-block size-1.5 rounded-full bg-(--accent)" title="شیفت" />
           )}
         </span>
         <span className="text-[10px] text-(--text-muted)" dir="ltr">

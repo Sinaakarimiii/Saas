@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  local-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:time
+        env:
+          TZ: UTC
+      - run: npm run test:time
+        env:
+          TZ: America/Los_Angeles
+      - uses: supabase/setup-cli@v2
+        with:
+          version: 2.113.0
+      - id: local
+        run: node scripts/start-local-validation.mjs --secondary
+      - run: node scripts/verify-security-stage2.mjs "$VALIDATION_WORKDIR" --secondary
+        env:
+          VALIDATION_WORKDIR: ${{ steps.local.outputs.validation_workdir }}
+      - run: npm run test:holidays -- "$VALIDATION_WORKDIR" --secondary
+        env:
+          VALIDATION_WORKDIR: ${{ steps.local.outputs.validation_workdir }}
+      - run: npm run test:invite -- "$VALIDATION_WORKDIR" --secondary
+        env:
+          VALIDATION_WORKDIR: ${{ steps.local.outputs.validation_workdir }}
+      - run: node scripts/with-local-env.mjs "$VALIDATION_WORKDIR" --secondary -- npm run build -- --webpack
+        env:
+          VALIDATION_WORKDIR: ${{ steps.local.outputs.validation_workdir }}
+      - run: npm run typecheck

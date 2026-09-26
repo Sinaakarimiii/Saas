@@ -1,0 +1,29 @@
+{
+  "process_types": [
+    { "slug": "request", "name_en": "Request Process", "name_fa": "فرایند درخواست", "description_en": "An actor asks for something to be provided or done." },
+    { "slug": "approval", "name_en": "Approval Process", "name_fa": "فرایند تأیید", "description_en": "A binary or multi-option decision gate on a submitted request." },
+    { "slug": "review", "name_en": "Review Process", "name_fa": "فرایند بازبینی", "description_en": "Non-binary examination producing comments/changes, not a final decision." },
+    { "slug": "service", "name_en": "Service Process", "name_fa": "فرایند خدمت", "description_en": "Delivery of a defined service to a requester." },
+    { "slug": "incident", "name_en": "Incident Process", "name_fa": "فرایند حادثه", "description_en": "Reactive handling of an unplanned disruption." },
+    { "slug": "case-management", "name_en": "Case Management", "name_fa": "مدیریت پرونده", "description_en": "Non-linear tracking of a matter with multiple independent work items." },
+    { "slug": "compliance", "name_en": "Compliance Process", "name_fa": "فرایند انطباق", "description_en": "Ensures adherence to an internal policy or external regulation." },
+    { "slug": "audit", "name_en": "Audit Process", "name_fa": "فرایند ممیزی", "description_en": "Systematic examination producing documented findings." },
+    { "slug": "procurement", "name_en": "Procurement Process", "name_fa": "فرایند تدارکات", "description_en": "Acquisition of goods/services from outside the organization." },
+    { "slug": "financial", "name_en": "Financial Process", "name_fa": "فرایند مالی", "description_en": "Movement or control of financial resources." },
+    { "slug": "hr", "name_en": "HR Process", "name_fa": "فرایند منابع انسانی", "description_en": "Tied to an employee's lifecycle." },
+    { "slug": "document", "name_en": "Document Process", "name_fa": "فرایند سند", "description_en": "Lifecycle of a document (draft/review/approve/archive)." },
+    { "slug": "project", "name_en": "Project Process", "name_fa": "فرایند پروژه", "description_en": "One-off, goal-bound activity set, not a repeating template." },
+    { "slug": "customer-service", "name_en": "Customer Service Process", "name_fa": "فرایند خدمات مشتری", "description_en": "Direct interaction with an external customer." },
+    { "slug": "maintenance", "name_en": "Maintenance Process", "name_fa": "فرایند نگهداری", "description_en": "Upkeep of a physical or digital asset." },
+    { "slug": "inspection", "name_en": "Inspection Process", "name_fa": "فرایند بازرسی", "description_en": "Periodic examination of an asset/site/condition." },
+    { "slug": "scheduling", "name_en": "Scheduling Process", "name_fa": "فرایند زمان‌بندی", "description_en": "Allocation of time or resources." },
+    { "slug": "onboarding", "name_en": "Onboarding Process", "name_fa": "فرایند ورود", "description_en": "Entry of a new entity (employee, customer, vendor) into active status." },
+    { "slug": "offboarding", "name_en": "Offboarding Process", "name_fa": "فرایند خروج", "description_en": "Exit of an entity from active status." },
+    { "slug": "escalation", "name_en": "Escalation Process", "name_fa": "فرایند تشدید", "description_en": "Transfer to a higher authority level; usually embedded in another process, rarely standalone." },
+    { "slug": "exception", "name_en": "Exception Process", "name_fa": "فرایند استثنا", "description_en": "Deviation handling outside the normal path." },
+    { "slug": "renewal", "name_en": "Renewal Process", "name_fa": "فرایند تمدید", "description_en": "Extension of an expiring commitment/contract." },
+    { "slug": "assessment", "name_en": "Assessment Process", "name_fa": "فرایند ارزیابی", "description_en": "Qualitative or quantitative evaluation." },
+    { "slug": "registration", "name_en": "Registration Process", "name_fa": "فرایند ثبت", "description_en": "Initial recording of an entity into the system." },
+    { "slug": "fulfillment", "name_en": "Fulfillment Process", "name_fa": "فرایند تحقق", "description_en": "Operational completion of an accepted request." }
+  ]
+}

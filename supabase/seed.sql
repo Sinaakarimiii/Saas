@@ -1,0 +1,4 @@
+-- The baseline schema and reference calendar data are defined in migrations.
+-- For two-org integration fixtures with real local Auth identities, run
+-- scripts/verify-local-baseline.mjs against an isolated local stack.
+-- This file intentionally contains no application users or credentials.

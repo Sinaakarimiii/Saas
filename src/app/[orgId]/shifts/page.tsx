@@ -42,7 +42,7 @@ export default async function ShiftsPage({
     await Promise.all([
       supabase
         .from("shift_templates")
-        .select("id, name, start_time, end_time")
+        .select("id, name, start_time, end_time, color_hex")
         .eq("org_id", orgId)
         .is("deleted_at", null)
         .order("start_time", { ascending: true }),
@@ -54,7 +54,7 @@ export default async function ShiftsPage({
       supabase
         .from("shift_assignments")
         .select(
-          "id, title, work_date, start_time, end_time, org_members(profiles(full_name, email))",
+          "id, title, work_date, start_time, end_time, color_hex, org_members(profiles(full_name, email))",
         )
         .eq("org_id", orgId)
         .is("deleted_at", null)
@@ -94,6 +94,7 @@ export default async function ShiftsPage({
           )}
           {(templates ?? []).map((t) => (
             <Badge key={t.id} variant="outline" className="text-sm">
+              <span className="size-3 rounded-full" style={{ backgroundColor: t.color_hex }} />
               {t.name} ({t.start_time.slice(0, 5)}–{t.end_time.slice(0, 5)})
             </Badge>
           ))}
@@ -112,6 +113,7 @@ export default async function ShiftsPage({
                 <TableHead>عضو</TableHead>
                 <TableHead>عنوان</TableHead>
                 <TableHead>ساعت</TableHead>
+                <TableHead>رنگ</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -126,6 +128,7 @@ export default async function ShiftsPage({
                   <TableCell dir="ltr" className="text-right font-mono">
                     {a.start_time?.slice(0, 5)}–{a.end_time?.slice(0, 5)}
                   </TableCell>
+                  <TableCell><span className="inline-block size-4 rounded-full" style={{ backgroundColor: a.color_hex }} /></TableCell>
                   <TableCell>
                     <RemoveShiftAssignmentButton orgId={orgId} assignmentId={a.id} />
                   </TableCell>
