@@ -156,6 +156,13 @@ const paymentVerifySchema = z.object({
   orgId: uuid, caseId: uuid, paymentId: uuid, expectedVersion: z.number().int().positive(), idempotencyKey: uuid,
   verificationReference: z.string().trim().min(1).max(160),
 });
+const paymentCorrectionSchema = z.object({
+  orgId: uuid, caseId: uuid, paymentId: uuid, expectedVersion: z.number().int().positive(), idempotencyKey: uuid,
+  reason: z.enum(["duplicate", "not_received", "incorrect_details"]),
+  explanation: z.string().trim().min(5).max(1000),
+  correctionReference: z.string().trim().min(1).max(160),
+  evidenceReference: z.string().trim().min(1).max(500),
+});
 
 export async function recordRepairPaymentEvidenceAction(raw: unknown): Promise<ActionResult> {
   const parsed = paymentEvidenceSchema.safeParse(raw);
@@ -189,6 +196,25 @@ export async function verifyRepairPaymentEvidenceAction(raw: unknown): Promise<A
   if (error) return { error: mapDatabaseError(error.message) };
   if (!data || typeof data !== "object" || Array.isArray(data) || typeof data.caseId !== "string")
     return { error: "پاسخ تطبیق سند معتبر نبود. پرونده را تازه کنید." };
+  revalidatePath(`/${input.orgId}/repairs/${input.caseId}`);
+  return { caseId: data.caseId };
+}
+
+export async function correctRepairPaymentEvidenceAction(raw: unknown): Promise<ActionResult> {
+  const parsed = paymentCorrectionSchema.safeParse(raw);
+  if (!parsed.success) return { error: "دلیل، شرح و مراجع اصلاح سند را بررسی کنید." };
+  const input = parsed.data;
+  const supabase = await authorized(input.orgId, PERMISSIONS.REPAIR_PAYMENT_CORRECT);
+  if (!supabase) return { error: "مجوز مستقل اصلاح سند پرداخت را ندارید." };
+  const { data, error } = await supabase.rpc("correct_repair_payment_evidence", {
+    p_org_id: input.orgId, p_case_id: input.caseId, p_payment_id: input.paymentId,
+    p_expected_version: input.expectedVersion, p_idempotency_key: input.idempotencyKey,
+    p_reason: input.reason, p_explanation: input.explanation,
+    p_correction_reference: input.correctionReference, p_evidence_reference: input.evidenceReference,
+  });
+  if (error) return { error: mapDatabaseError(error.message) };
+  if (!data || typeof data !== "object" || Array.isArray(data) || typeof data.caseId !== "string")
+    return { error: "پاسخ اصلاح سند معتبر نبود. پرونده را تازه کنید." };
   revalidatePath(`/${input.orgId}/repairs/${input.caseId}`);
   return { caseId: data.caseId };
 }
@@ -357,6 +383,8 @@ function mapDatabaseError(message: string): string {
   if (message.includes("CURRENT_PAYMENT_REQUIRED")) return "این سند متعلق به نسخهٔ فعلی برنامهٔ پرداختی نیست.";
   if (message.includes("CURRENT_PAID_PLAN_REQUIRED")) return "برای ثبت سند، برنامهٔ پرداختی معتبر در مرحلهٔ فعلی لازم است.";
   if (message.includes("PAYMENT_ALREADY_VERIFIED")) return "این سند قبلاً تطبیق شده است.";
+  if (message.includes("PAYMENT_ALREADY_CORRECTED")) return "این سند قبلاً اصلاح و از محاسبه خارج شده است.";
+  if (message.includes("INVALID_PAYMENT_CORRECTION")) return "دلیل، شرح و مراجع اصلاح را بررسی کنید.";
   if (message.includes("INVALID_PAYMENT_")) return "مبلغ و مراجع سند یا تطبیق را بررسی کنید.";
   if (message.includes("ACTIVE_REPAIR_CASE_EXISTS")) return "برای این IMEI پروندهٔ باز وجود دارد. پروندهٔ موجود را بررسی کنید؛ استثنا به مجوز، علت و مرجع تأیید نیاز دارد.";
   if (message.includes("CASE_VERSION_CONFLICT")) return "پرونده تغییر کرده است. صفحه را تازه کنید و دوباره بررسی کنید.";

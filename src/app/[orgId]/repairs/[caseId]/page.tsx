@@ -49,6 +49,7 @@ const eventNames: Record<string, string> = {
   functional_test_recorded: "آزمون عملکرد تعمیر ثبت شد", functional_test_released: "آزمون عملکرد تعمیر آزاد شد",
   repair_outgoing_checked: "کنترل خروج تعمیر ثبت شد", repair_outgoing_released: "کنترل خروج تعمیر آزاد شد",
   payment_recorded: "سند پرداخت ثبت شد", payment_verified: "سند پرداخت تطبیق شد",
+  payment_corrected: "سند پرداخت اشتباه اصلاح شد",
   assignment_requested: "درخواست واگذاری مسئولیت ثبت شد", assignment_accepted: "واگذاری مسئولیت پذیرفته شد",
   assignment_rejected: "درخواست واگذاری رد شد", assignment_withdrawn: "درخواست واگذاری پس گرفته شد",
   part_required: "نیاز قطعه ثبت شد", part_reserved: "قطعه رزرو شد",
@@ -130,7 +131,7 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
   if (planError) throw new Error("Could not load repair action plan", { cause: planError });
   const paidPlanVisible = latestPlan?.financial_basis === "customer_paid"
     && ["decision", "repair", "test", "delivery"].includes(repair.stage);
-  const [{ data: paymentEvidence, error: paymentError }, { data: paymentVerifications, error: verificationError }] = paidPlanVisible
+  const [{ data: paymentEvidence, error: paymentError }, { data: paymentVerifications, error: verificationError }, { data: paymentCorrections, error: correctionError }] = paidPlanVisible
     ? await Promise.all([
       supabase.from("repair_payment_evidence")
         .select("id, amount_irr, method, external_reference, evidence_reference, recorded_at")
@@ -139,8 +140,11 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
       supabase.from("repair_payment_verifications")
         .select("payment_id, verification_reference")
         .eq("org_id", orgId).eq("case_id", caseId),
-    ]) : [{ data: [], error: null }, { data: [], error: null }];
-  if (paymentError || verificationError) throw new Error("Could not load repair payments", { cause: paymentError ?? verificationError });
+      supabase.from("repair_payment_corrections")
+        .select("payment_id, reason, explanation, correction_reference, evidence_reference, corrected_at")
+        .eq("org_id", orgId).eq("case_id", caseId),
+    ]) : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
+  if (paymentError || verificationError || correctionError) throw new Error("Could not load repair payments", { cause: paymentError ?? verificationError ?? correctionError });
   const { data: planApprovals, error: approvalsError } = latestPlan
     ? await supabase.from("repair_plan_approvals").select("id, kind, decision, recorded_at")
       .eq("org_id", orgId).eq("case_id", caseId).eq("plan_id", latestPlan.id)
@@ -319,8 +323,9 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
     && checkMatchesStage
     && outgoingCheck.identity_pass && outgoingCheck.items_pass && outgoingCheck.condition_pass && outgoingCheck.transport_pass);
   const verifiedPaymentIds = new Set((paymentVerifications ?? []).map((item) => item.payment_id));
+  const correctedPaymentIds = new Set((paymentCorrections ?? []).map((item) => item.payment_id));
   const verifiedAmount = (paymentEvidence ?? []).reduce((sum, item) =>
-    sum + (verifiedPaymentIds.has(item.id) ? item.amount_irr : 0), 0);
+    sum + (verifiedPaymentIds.has(item.id) && !correctedPaymentIds.has(item.id) ? item.amount_irr : 0), 0);
   const repairFinanceReady = Boolean(latestPlan && (latestPlan.financial_basis === "warranty" && latestPlan.amount_irr === 0
     || latestPlan.financial_basis === "customer_paid" && verifiedAmount === latestPlan.amount_irr));
   const repairCheckMatchesStage = repair.stage === "test"
@@ -451,9 +456,10 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
         canApproveReplacement={ctx.can(PERMISSIONS.REPAIR_REPLACEMENT_APPROVE)} />}
       {paidPlanVisible && latestPlan && <RepairPaymentPanel key={latestPlan.id}
         orgId={orgId} caseId={caseId} expectedVersion={repair.version} planAmount={latestPlan.amount_irr}
-        payments={paymentEvidence ?? []} verifications={paymentVerifications ?? []}
+        payments={paymentEvidence ?? []} verifications={paymentVerifications ?? []} corrections={paymentCorrections ?? []}
         canRecord={repair.stage !== "delivery" && ctx.can(PERMISSIONS.REPAIR_PAYMENT_RECORD)}
-        canVerify={repair.stage !== "delivery" && ctx.can(PERMISSIONS.REPAIR_PAYMENT_VERIFY)} />}
+        canVerify={repair.stage !== "delivery" && ctx.can(PERMISSIONS.REPAIR_PAYMENT_VERIFY)}
+        canCorrect={repair.stage !== "delivery" && ctx.can(PERMISSIONS.REPAIR_PAYMENT_CORRECT)} />}
       {repair.stage === "decision" && needsParts && latestPlan && <PartsPanel
         key={latestPlan.id} orgId={orgId} caseId={caseId} planId={latestPlan.id}
         expectedVersion={repair.version} parts={parts} requirements={requirements}

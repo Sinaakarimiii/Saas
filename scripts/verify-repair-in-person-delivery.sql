@@ -10,7 +10,8 @@ select role_id,key from delivery_fixture cross join public.permissions
 where key like 'repair.case.%' or key like 'repair.diagnosis.%' or key like 'case.transition.%'
  or key in ('repair.plan.record','repair.complete','repair.test.record','repair.quality.release',
   'repair.outgoing_qc.record','custody.baseline.record','repair.delivery.receive','case.close',
-  'repair.customer_approval.record','repair.payment.record','repair.payment.verify','custody.transfer.release');
+  'repair.customer_approval.record','repair.payment.record','repair.payment.verify',
+  'repair.payment.correct','custody.transfer.release');
 grant select on delivery_fixture to authenticated;
 create function pg_temp.delivery_evidence(p_path text,p_owner uuid)
 returns void language sql security definer set search_path='' as $$
@@ -139,7 +140,18 @@ begin
  paid:=public.record_repair_payment_evidence(f.org_id,case_id,17,gen_random_uuid(),
   60000,'bank_transfer','paid-part-2','bank-2');
  perform public.verify_repair_payment_evidence(f.org_id,case_id,(paid->>'paymentId')::uuid,18,gen_random_uuid(),'match-2');
- perform public.advance_repaired_case_to_delivery(f.org_id,case_id,19,gen_random_uuid());
- raise notice 'Paid repair stayed blocked until full verified settlement';
+ perform public.correct_repair_payment_evidence(f.org_id,case_id,(paid->>'paymentId')::uuid,
+  19,gen_random_uuid(),'not_received','Bank did not settle','paid-correction-2','bank-rejection');
+ begin
+  perform public.advance_repaired_case_to_delivery(f.org_id,case_id,20,gen_random_uuid());
+  raise exception 'Corrected payment still released delivery';
+ exception when check_violation then
+  if sqlerrm<>'REPAIR_PAYMENT_UNSETTLED' then raise; end if;
+ end;
+ paid:=public.record_repair_payment_evidence(f.org_id,case_id,20,gen_random_uuid(),
+  60000,'bank_transfer','paid-part-3','bank-3');
+ perform public.verify_repair_payment_evidence(f.org_id,case_id,(paid->>'paymentId')::uuid,21,gen_random_uuid(),'match-3');
+ perform public.advance_repaired_case_to_delivery(f.org_id,case_id,22,gen_random_uuid());
+ raise notice 'Paid repair stayed blocked after correction until new verified settlement';
 end $$;
 rollback;

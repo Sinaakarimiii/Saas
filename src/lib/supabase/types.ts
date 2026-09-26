@@ -2300,6 +2300,53 @@ export type Database = {
           },
         ]
       }
+      repair_payment_corrections: {
+        Row: {
+          id: string
+          org_id: string
+          case_id: string
+          payment_id: string
+          reason: string
+          explanation: string
+          correction_reference: string
+          evidence_reference: string
+          corrected_by: string
+          corrected_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          case_id: string
+          payment_id: string
+          reason: string
+          explanation: string
+          correction_reference: string
+          evidence_reference: string
+          corrected_by: string
+          corrected_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          case_id?: string
+          payment_id?: string
+          reason?: string
+          explanation?: string
+          correction_reference?: string
+          evidence_reference?: string
+          corrected_by?: string
+          corrected_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repair_payment_corrections_org_id_case_id_payment_id_fkey"
+            columns: ["org_id", "case_id", "payment_id"]
+            isOneToOne: true
+            referencedRelation: "repair_payment_evidence"
+            referencedColumns: ["org_id", "case_id", "id"]
+          },
+        ]
+      }
       repair_payment_evidence: {
         Row: {
           id: string
@@ -3585,6 +3632,20 @@ export type Database = {
           p_position_status: string
           p_power_evidence: string
           p_power_status: string
+        }
+        Returns: Json
+      }
+      correct_repair_payment_evidence: {
+        Args: {
+          p_org_id: string
+          p_case_id: string
+          p_payment_id: string
+          p_expected_version: number
+          p_idempotency_key: string
+          p_reason: string
+          p_explanation: string
+          p_correction_reference: string
+          p_evidence_reference: string
         }
         Returns: Json
       }
