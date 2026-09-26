@@ -188,6 +188,52 @@ const paymentCorrectionSchema = z.object({
   correctionReference: z.string().trim().min(1).max(160),
   evidenceReference: z.string().trim().min(1).max(500),
 });
+const creditRequestSchema = z.object({
+  orgId: uuid, caseId: uuid, sourcePaymentId: uuid, expectedVersion: z.number().int().positive(), idempotencyKey: uuid,
+  amountIrr: z.number().int().positive().safe(), requestReference: z.string().trim().min(1).max(160),
+  requestEvidence: z.string().trim().min(1).max(500),
+});
+const creditApprovalSchema = z.object({
+  orgId: uuid, caseId: uuid, transferId: uuid, expectedVersion: z.number().int().positive(), idempotencyKey: uuid,
+  approvalReference: z.string().trim().min(1).max(160),
+});
+
+export async function requestRepairPaymentCreditTransferAction(raw: unknown): Promise<ActionResult> {
+  const parsed = creditRequestSchema.safeParse(raw);
+  if (!parsed.success) return { error: "مبلغ و مراجع درخواست انتقال اعتبار را بررسی کنید." };
+  const input = parsed.data;
+  const supabase = await authorized(input.orgId, PERMISSIONS.REPAIR_PAYMENT_CREDIT_REQUEST);
+  if (!supabase) return { error: "مجوز درخواست انتقال اعتبار را ندارید." };
+  const { data, error } = await supabase.rpc("request_repair_payment_credit_transfer", {
+    p_org_id: input.orgId, p_case_id: input.caseId, p_source_payment_id: input.sourcePaymentId,
+    p_expected_version: input.expectedVersion, p_idempotency_key: input.idempotencyKey,
+    p_amount_irr: input.amountIrr, p_request_reference: input.requestReference,
+    p_request_evidence: input.requestEvidence,
+  });
+  if (error) return { error: mapDatabaseError(error.message) };
+  if (!data || typeof data !== "object" || Array.isArray(data) || typeof data.caseId !== "string")
+    return { error: "پاسخ انتقال اعتبار معتبر نبود. پرونده را تازه کنید." };
+  revalidatePath(`/${input.orgId}/repairs/${input.caseId}`);
+  return { caseId: data.caseId };
+}
+
+export async function approveRepairPaymentCreditTransferAction(raw: unknown): Promise<ActionResult> {
+  const parsed = creditApprovalSchema.safeParse(raw);
+  if (!parsed.success) return { error: "مرجع تأیید انتقال اعتبار را بررسی کنید." };
+  const input = parsed.data;
+  const supabase = await authorized(input.orgId, PERMISSIONS.REPAIR_PAYMENT_CREDIT_APPROVE);
+  if (!supabase) return { error: "مجوز تأیید انتقال اعتبار را ندارید." };
+  const { data, error } = await supabase.rpc("approve_repair_payment_credit_transfer", {
+    p_org_id: input.orgId, p_case_id: input.caseId, p_transfer_id: input.transferId,
+    p_expected_version: input.expectedVersion, p_idempotency_key: input.idempotencyKey,
+    p_approval_reference: input.approvalReference,
+  });
+  if (error) return { error: mapDatabaseError(error.message) };
+  if (!data || typeof data !== "object" || Array.isArray(data) || typeof data.caseId !== "string")
+    return { error: "پاسخ تأیید انتقال اعتبار معتبر نبود. پرونده را تازه کنید." };
+  revalidatePath(`/${input.orgId}/repairs/${input.caseId}`);
+  return { caseId: data.caseId };
+}
 
 export async function recordRepairPaymentEvidenceAction(raw: unknown): Promise<ActionResult> {
   const parsed = paymentEvidenceSchema.safeParse(raw);
@@ -405,6 +451,13 @@ function mapDatabaseError(message: string): string {
   if (message.includes("REPAIR_OUTGOING_NOT_RELEASABLE")) return "فقط آخرین کنترل خروج موفقِ همین تست، دستگاه و نوبت قابل آزادسازی است.";
   if (message.includes("INVALID_REPAIR_OUTGOING_CHECK")) return "نتیجه‌ها، شواهد و اطلاعات گیرنده را بررسی کنید.";
   if (message.includes("PAYMENT_EXCEEDS_PLAN")) return "جمع پرداخت‌های تطبیق‌شده از مبلغ برنامه بیشتر می‌شود.";
+  if (message.includes("PAYMENT_HAS_CREDIT_TRANSFER")) return "این رسید به برنامهٔ جدید منتقل شده و دیگر قابل اصلاح سند نیست.";
+  if (message.includes("CREDIT_AMOUNT_EXCEEDS_AVAILABLE") || message.includes("CREDIT_SOURCE_EXHAUSTED")) return "مبلغ انتقال از ماندهٔ آزاد رسید قبلی بیشتر است.";
+  if (message.includes("CREDIT_EXCEEDS_PLAN")) return "این انتقال از ماندهٔ برنامهٔ جدید بیشتر می‌شود.";
+  if (message.includes("CREDIT_APPROVAL_NOT_ALLOWED")) return "تأیید باید توسط فرد دیگری و برای برنامهٔ جاری انجام شود؛ وضعیت رسید را بررسی کنید.";
+  if (message.includes("ELIGIBLE_OLD_PAYMENT_REQUIRED")) return "رسید قبلی باید تطبیق‌شده، اصلاح‌نشده و متعلق به نسخهٔ قدیمی‌تر باشد.";
+  if (message.includes("PENDING_CREDIT_TRANSFER_REQUIRED")) return "درخواست انتقال دیگر در انتظار تأیید نیست.";
+  if (message.includes("INVALID_CREDIT_")) return "مبلغ و مراجع انتقال اعتبار را بررسی کنید.";
   if (message.includes("CURRENT_PAYMENT_REQUIRED")) return "این سند متعلق به نسخهٔ فعلی برنامهٔ پرداختی نیست.";
   if (message.includes("CURRENT_PAID_PLAN_REQUIRED")) return "برای ثبت سند، برنامهٔ پرداختی معتبر در مرحلهٔ فعلی لازم است.";
   if (message.includes("PAYMENT_ALREADY_VERIFIED")) return "این سند قبلاً تطبیق شده است.";

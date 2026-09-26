@@ -16,10 +16,10 @@ type Correction = { payment_id: string; reason: string; explanation: string; cor
 const methodNames: Record<string, string> = { card: "کارت", bank_transfer: "حوالهٔ بانکی", cash: "نقد" };
 const reasonNames: Record<string, string> = { duplicate: "سند تکراری", not_received: "وجه دریافت نشده", incorrect_details: "مشخصات سند نادرست" };
 
-export function RepairPaymentPanel({ orgId, caseId, expectedVersion, planAmount, payments, verifications, corrections,
+export function RepairPaymentPanel({ orgId, caseId, expectedVersion, planAmount, payments, verifications, corrections, approvedCreditAmount,
   canRecord, canVerify, canCorrect }: {
   orgId: string; caseId: string; expectedVersion: number; planAmount: number;
-  payments: Payment[]; verifications: Verification[]; corrections: Correction[];
+  payments: Payment[]; verifications: Verification[]; corrections: Correction[]; approvedCreditAmount: number;
   canRecord: boolean; canVerify: boolean; canCorrect: boolean;
 }) {
   const router = useRouter();
@@ -40,7 +40,7 @@ export function RepairPaymentPanel({ orgId, caseId, expectedVersion, planAmount,
   const verified = new Set(verifications.map((item) => item.payment_id));
   const correctionByPayment = new Map(corrections.map((item) => [item.payment_id, item]));
   const confirmed = payments.reduce((sum, payment) => sum + (verified.has(payment.id) && !correctionByPayment.has(payment.id) ? payment.amount_irr : 0), 0);
-  const remaining = Math.max(0, planAmount - confirmed);
+  const remaining = Math.max(0, planAmount - confirmed - approvedCreditAmount);
   async function record(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
@@ -79,7 +79,7 @@ export function RepairPaymentPanel({ orgId, caseId, expectedVersion, planAmount,
     finally { setPending(false); }
   }
   return <Card><CardHeader><CardTitle>اسناد پرداخت برنامهٔ جاری</CardTitle></CardHeader><CardContent className="grid gap-4 text-sm">
-    <p className="text-muted-foreground">مبلغ برنامه: {planAmount.toLocaleString("fa-IR")} ریال · تطبیق‌شده: {confirmed.toLocaleString("fa-IR")} ریال · مانده: {remaining.toLocaleString("fa-IR")} ریال</p>
+    <p className="text-muted-foreground">مبلغ برنامه: {planAmount.toLocaleString("fa-IR")} ریال · پرداخت تطبیق‌شده: {confirmed.toLocaleString("fa-IR")} ریال · اعتبار منتقل‌شده: {approvedCreditAmount.toLocaleString("fa-IR")} ریال · مانده: {remaining.toLocaleString("fa-IR")} ریال</p>
     <p className="text-muted-foreground">ثبت سند، دریافت وجه را تأیید نمی‌کند. هر سند با مجوز مستقل و مرجع تطبیق بررسی می‌شود. اصلاح سند اشتباه از محاسبهٔ مانده کسر می‌شود و به معنای استرداد وجه نیست.</p>
     {payments.map((payment) => <div key={payment.id} className="rounded-xl border border-border/70 p-3">
       <p className="font-medium">{payment.amount_irr.toLocaleString("fa-IR")} ریال · {methodNames[payment.method] ?? payment.method} · {correctionByPayment.has(payment.id) ? "اصلاح‌شده / خارج از محاسبه" : verified.has(payment.id) ? "تطبیق‌شده" : "منتظر تطبیق"}</p>

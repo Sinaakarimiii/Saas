@@ -40,6 +40,8 @@ export const PERMISSIONS = {
   REPAIR_PAYMENT_RECORD: "repair.payment.record",
   REPAIR_PAYMENT_VERIFY: "repair.payment.verify",
   REPAIR_PAYMENT_CORRECT: "repair.payment.correct",
+  REPAIR_PAYMENT_CREDIT_REQUEST: "repair.payment.credit.request",
+  REPAIR_PAYMENT_CREDIT_APPROVE: "repair.payment.credit.approve",
   REPAIR_PART_QUARANTINE_RESTOCK: "repair.part.quarantine.restock",
   REPAIR_PART_QUARANTINE_REJECT: "repair.part.quarantine.reject",
   REPAIR_CUSTOMER_APPROVAL_RECORD: "repair.customer_approval.record",
