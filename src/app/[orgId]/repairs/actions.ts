@@ -743,7 +743,11 @@ export async function recordRepairDeliveryDispatchAction(raw: unknown): Promise<
   const input = parsed.data;
   const supabase = await authorized(input.orgId, PERMISSIONS.REPAIR_DELIVERY_DISPATCH);
   if (!supabase) return { error: "مجوز ثبت خروج پستی یا پیک را ندارید." };
-  const { data, error } = await supabase.rpc("record_repair_delivery_dispatch", {
+  const { data: deliveryPlan } = await supabase.from("repair_action_plans").select("route")
+    .eq("org_id", input.orgId).eq("case_id", input.caseId)
+    .order("revision", { ascending: false }).limit(1).maybeSingle();
+  const { data, error } = await supabase.rpc(deliveryPlan?.route === "repair"
+    ? "record_repaired_delivery_dispatch" : "record_repair_delivery_dispatch", {
     p_org_id: input.orgId, p_case_id: input.caseId, p_expected_version: input.expectedVersion,
     p_idempotency_key: input.idempotencyKey, p_method: input.method, p_carrier: input.carrier,
     p_destination_address: input.destinationAddress, p_tracking_code: input.trackingCode,
@@ -763,7 +767,11 @@ export async function confirmRepairDeliveryReceiptAction(raw: unknown): Promise<
   const input = parsed.data;
   const supabase = await authorized(input.orgId, PERMISSIONS.REPAIR_DELIVERY_CONFIRM_RECEIPT);
   if (!supabase) return { error: "مجوز تأیید دریافت مقصد را ندارید." };
-  const { data, error } = await supabase.rpc("confirm_repair_delivery_receipt", {
+  const { data: deliveryPlan } = await supabase.from("repair_action_plans").select("route")
+    .eq("org_id", input.orgId).eq("case_id", input.caseId)
+    .order("revision", { ascending: false }).limit(1).maybeSingle();
+  const { data, error } = await supabase.rpc(deliveryPlan?.route === "repair"
+    ? "confirm_repaired_delivery_receipt" : "confirm_repair_delivery_receipt", {
     p_org_id: input.orgId, p_case_id: input.caseId, p_dispatch_id: input.dispatchId,
     p_expected_version: input.expectedVersion, p_idempotency_key: input.idempotencyKey,
     p_recipient_name: input.recipientName, p_recipient_role: input.recipientRole,

@@ -268,7 +268,7 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
   if (deliveryReceiptError) throw new Error("Could not load delivery receipt", { cause: deliveryReceiptError });
   const { data: deliveryDispatch, error: deliveryDispatchError } = ["delivery", "closed"].includes(repair.stage)
     ? await supabase.from("repair_delivery_dispatches")
-      .select("id, method, carrier, destination_name, destination_role, authority_reference, destination_address, tracking_code, dispatch_reference, dispatched_at, outgoing_check_id, status")
+      .select("id, method, carrier, destination_name, destination_role, authority_reference, destination_address, tracking_code, dispatch_reference, dispatched_at, outgoing_check_id, repair_outgoing_check_id, status")
       .eq("org_id", orgId).eq("case_id", caseId).order("dispatched_at", { ascending: false }).limit(1).maybeSingle()
     : { data: null, error: null };
   if (deliveryDispatchError) throw new Error("Could not load delivery dispatch", { cause: deliveryDispatchError });
@@ -301,8 +301,8 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
   if (deliveryFollowupError) throw new Error("Could not load delivery followups", { cause: deliveryFollowupError });
   const openDeliveryIncident = (deliveryIncidents ?? []).some((item) => item.status === "open");
   const openDamage = (openDamageCount ?? 0) > 0;
-  const damageNeedsRetest = Boolean(repair.stage === "delivery" && outgoingCheck
-    && repair.custody_damage_epoch > outgoingCheck.custody_damage_epoch);
+  const damageNeedsRetest = Boolean(repair.stage === "delivery" && (latestPlan?.route === "repair" ? repairOutgoingCheck : outgoingCheck)
+    && repair.custody_damage_epoch > (latestPlan?.route === "repair" ? repairOutgoingCheck : outgoingCheck)!.custody_damage_epoch);
   const damageReturned = Boolean(damageReturn) || (custodyDiscrepancies ?? []).some((item) => item.kind === "damage"
     && new Date(item.recorded_at).getTime() >= new Date(repair.stage_entered_at).getTime()
     && (custodyTransfers ?? []).some((transfer) => transfer.id === item.transfer_id && transfer.status === "returned"));
@@ -329,9 +329,10 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
       event.event_type === "stage_transition" && event.details && typeof event.details === "object"
       && !Array.isArray(event.details) && event.details.transitionCode === "T08"
       && event.details.repairOutgoingCheckId === repairOutgoingCheck.id));
-  const repairDeliveryReady = Boolean(repairFinanceReady && !openDamage && repairOutgoingCheck && repairOutgoingRelease
+  const repairDeliveryReady = Boolean(repairFinanceReady && !openDamage && !openDeliveryIncident
+    && repairOutgoingCheck && repairOutgoingRelease
     && custodyPosition?.case_id === caseId
-    && (repair.stage === "test" ? custodyPosition.holder_kind === "staff" : ["staff", "recipient"].includes(custodyPosition.holder_kind))
+    && (repair.stage === "test" ? custodyPosition.holder_kind === "staff" : ["staff", "carrier", "recipient"].includes(custodyPosition.holder_kind))
     && repairOutgoingCheck.plan_id === latestPlan?.id && repairOutgoingCheck.device_id === repair.verified_device_id
     && repairOutgoingCheck.custody_damage_epoch === repair.custody_damage_epoch && repairCheckMatchesStage
     && repairOutgoingCheck.identity_pass && repairOutgoingCheck.items_pass
@@ -529,7 +530,7 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
         authorityReference={outgoingCheck.authority_reference}
         receipt={deliveryReceipt} canRecord={ctx.can(PERMISSIONS.REPAIR_DELIVERY_RECEIVE)}
         ready={deliveryReady && latestPlan.financial_basis === "none" && latestPlan.amount_irr === 0} />}
-      {repair.stage === "delivery" && latestPlan?.route === "repair" && repairOutgoingCheck && <DeliveryReceipt
+      {repair.stage === "delivery" && latestPlan?.route === "repair" && repairOutgoingCheck && !activeDispatch && <DeliveryReceipt
         orgId={orgId} caseId={caseId} expectedVersion={repair.version}
         intendedRecipient={repairOutgoingCheck.intended_recipient}
         recipientRole={repairOutgoingCheck.recipient_role as "owner" | "authorized_representative" | "colleague"}
@@ -542,6 +543,13 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
         received={Boolean(deliveryReceipt)} incidentOpen={openDeliveryIncident} canDispatch={ctx.can(PERMISSIONS.REPAIR_DELIVERY_DISPATCH)}
         canConfirm={ctx.can(PERMISSIONS.REPAIR_DELIVERY_CONFIRM_RECEIPT)}
         ready={deliveryReady && latestPlan.financial_basis === "none" && latestPlan.amount_irr === 0} />}
+      {repair.stage === "delivery" && latestPlan?.route === "repair" && repairOutgoingCheck && (activeDispatch || !deliveryReceipt) && <DeliveryShipment
+        orgId={orgId} caseId={caseId} expectedVersion={repair.version}
+        intendedRecipient={repairOutgoingCheck.intended_recipient} dispatch={activeDispatch}
+        received={Boolean(deliveryReceipt)} incidentOpen={openDeliveryIncident}
+        canDispatch={ctx.can(PERMISSIONS.REPAIR_DELIVERY_DISPATCH)}
+        canConfirm={ctx.can(PERMISSIONS.REPAIR_DELIVERY_CONFIRM_RECEIPT)}
+        ready={repairDeliveryReady} />}
       {repair.stage === "delivery" && (dispatchHistory ?? []).length > 1 && <Card>
         <CardHeader><CardTitle>سابقهٔ ارسال‌ها</CardTitle></CardHeader>
         <CardContent className="grid gap-2 text-sm">{(dispatchHistory ?? []).map((item) =>
@@ -574,6 +582,9 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
         handoverReady={Boolean(deliveryReceipt && deliveryReceipt.device_id === repair.verified_device_id
           && (latestPlan?.route === "repair"
             ? repairOutgoingCheck && deliveryReceipt.repair_outgoing_check_id === repairOutgoingCheck.id
+              && (deliveryReceipt.method === "in_person" ? !activeDispatch
+                : activeDispatch && deliveryReceipt.dispatch_id === activeDispatch.id
+                  && activeDispatch.repair_outgoing_check_id === repairOutgoingCheck.id)
             : outgoingCheck && deliveryReceipt.outgoing_check_id === outgoingCheck.id
               && (deliveryReceipt.method === "in_person" ? !activeDispatch
                 : activeDispatch && deliveryReceipt.dispatch_id === activeDispatch.id

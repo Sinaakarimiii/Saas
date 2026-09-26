@@ -1184,7 +1184,8 @@ export type Database = {
           id: string
           method: string
           org_id: string
-          outgoing_check_id: string
+          outgoing_check_id: string | null
+          repair_outgoing_check_id: string | null
           status: string
           tracking_code: string
         }
@@ -1203,7 +1204,8 @@ export type Database = {
           id?: string
           method: string
           org_id: string
-          outgoing_check_id: string
+          outgoing_check_id?: string | null
+          repair_outgoing_check_id?: string | null
           status?: string
           tracking_code: string
         }
@@ -1222,7 +1224,8 @@ export type Database = {
           id?: string
           method?: string
           org_id?: string
-          outgoing_check_id?: string
+          outgoing_check_id?: string | null
+          repair_outgoing_check_id?: string | null
           status?: string
           tracking_code?: string
         }
@@ -1239,6 +1242,13 @@ export type Database = {
             columns: ["org_id", "case_id", "outgoing_check_id"]
             isOneToOne: false
             referencedRelation: "repair_return_outgoing_checks"
+            referencedColumns: ["org_id", "case_id", "id"]
+          },
+          {
+            foreignKeyName: "repair_dispatch_repair_check_fkey"
+            columns: ["org_id", "case_id", "repair_outgoing_check_id"]
+            isOneToOne: false
+            referencedRelation: "repair_outgoing_checks"
             referencedColumns: ["org_id", "case_id", "id"]
           },
           {
@@ -3282,6 +3292,21 @@ export type Database = {
         }
         Returns: Json
       }
+      confirm_repaired_delivery_receipt: {
+        Args: {
+          p_authority_reference: string | null
+          p_case_id: string
+          p_dispatch_id: string
+          p_expected_version: number
+          p_idempotency_key: string
+          p_org_id: string
+          p_receipt_evidence: string
+          p_receipt_reference: string
+          p_recipient_name: string
+          p_recipient_role: string
+        }
+        Returns: Json
+      }
       consume_repair_part: {
         Args: {
           p_action_description: string
@@ -3462,6 +3487,21 @@ export type Database = {
         Returns: Json
       }
       record_repair_delivery_dispatch: {
+        Args: {
+          p_carrier: string
+          p_case_id: string
+          p_destination_address: string
+          p_dispatch_evidence: string
+          p_dispatch_reference: string
+          p_expected_version: number
+          p_idempotency_key: string
+          p_method: string
+          p_org_id: string
+          p_tracking_code: string
+        }
+        Returns: Json
+      }
+      record_repaired_delivery_dispatch: {
         Args: {
           p_carrier: string
           p_case_id: string
