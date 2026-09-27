@@ -11,7 +11,7 @@ type Item = "identity" | "power" | "position" | "configuration";
 type Status = "pass" | "fail" | "not_applicable";
 type Answer = { status: Status; evidence: string };
 type Test = {
-  id: string; revision: number; plan_id: string; completion_id: string; device_id: string;
+  id: string; revision: number; plan_id: string; completion_id: string | null; execution_id: string | null; device_id: string;
   custody_damage_epoch: number; passed: boolean; recorded_at: string;
   identity_status: string; identity_evidence: string; power_status: string; power_evidence: string;
   position_status: string; position_evidence: string;
@@ -30,8 +30,9 @@ const initial: Record<Item, Answer> = {
 const statusLabel: Record<string, string> = { pass: "قبول", fail: "رد", not_applicable: "نامرتبط" };
 
 export function RepairFunctionalTest({ orgId, caseId, expectedVersion, planId, completionId, deviceId,
-  damageEpoch, stageEnteredAt, latest, released, canRecord, canRelease, custodyBlocked }: {
+  executionId = null, route = "repair", damageEpoch, stageEnteredAt, latest, released, canRecord, canRelease, custodyBlocked }: {
   orgId: string; caseId: string; expectedVersion: number; planId: string; completionId: string | null;
+  executionId?: string | null; route?: "repair" | "replacement";
   deviceId: string | null; damageEpoch: number; stageEnteredAt: string; latest: Test | null;
   released: boolean; canRecord: boolean; canRelease: boolean; custodyBlocked: boolean;
 }) {
@@ -41,7 +42,9 @@ export function RepairFunctionalTest({ orgId, caseId, expectedVersion, planId, c
   const [answers, setAnswers] = useState<Record<Item, Answer>>(initial);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const sourceId = route === "repair" ? completionId : executionId;
   const current = Boolean(latest && latest.plan_id === planId && latest.completion_id === completionId
+    && latest.execution_id === executionId
     && latest.device_id === deviceId && latest.custody_damage_epoch === damageEpoch
     && new Date(latest.recorded_at).getTime() >= new Date(stageEnteredAt).getTime());
   async function record(event: React.FormEvent<HTMLFormElement>) {
@@ -50,7 +53,7 @@ export function RepairFunctionalTest({ orgId, caseId, expectedVersion, planId, c
     setPending(true); setError(""); recordKey.current ??= crypto.randomUUID();
     try {
       const result = await recordRepairFunctionalTestAction({
-        orgId, caseId, expectedVersion, idempotencyKey: recordKey.current,
+        orgId, caseId, expectedVersion, idempotencyKey: recordKey.current, route,
         identityStatus: answers.identity.status, identityEvidence: answers.identity.evidence,
         powerStatus: answers.power.status, powerEvidence: answers.power.evidence,
         positionStatus: answers.position.status, positionEvidence: answers.position.evidence,
@@ -73,7 +76,7 @@ export function RepairFunctionalTest({ orgId, caseId, expectedVersion, planId, c
     } catch { setError("ارتباط برقرار نشد. وضعیت پرونده را بررسی کنید و دوباره تلاش کنید."); }
     finally { setPending(false); }
   }
-  return <Card><CardHeader><CardTitle>آزمون عملکرد تعمیر</CardTitle></CardHeader><CardContent className="grid gap-4 text-sm">
+  return <Card><CardHeader><CardTitle>آزمون عملکرد {route === "replacement" ? "دستگاه جایگزین" : "تعمیر"}</CardTitle></CardHeader><CardContent className="grid gap-4 text-sm">
     <p className="text-muted-foreground">نتیجهٔ هر کنترل با شاهد آن ثبت می‌شود. نتیجهٔ کلی از کنترل‌ها محاسبه می‌شود؛ تست ردشده در سابقه می‌ماند و تست تازه لازم دارد. آزادسازی کیفیت یک اقدام مستقل است و هنوز پرونده را به تحویل نمی‌برد.</p>
     {custodyBlocked && <p role="alert" className="text-destructive">انتقال یا مغایرت باز دستگاه باید تعیین تکلیف شود.</p>}
     {latest && <div className="rounded-xl border border-border/70 p-4">
@@ -83,7 +86,7 @@ export function RepairFunctionalTest({ orgId, caseId, expectedVersion, planId, c
         ? <Button className="mt-3" disabled={pending} onClick={release}>آزادسازی مستقل تست</Button>
         : <p className="mt-2 text-muted-foreground">برای آزادسازی، مجوز مستقل کیفیت لازم است.</p>)}
     </div>}
-    {canRecord && completionId && deviceId ? <form onSubmit={record} className="grid gap-4">
+    {canRecord && sourceId && deviceId ? <form onSubmit={record} className="grid gap-4">
       {items.map(({ key, label, optional, hint }) => <fieldset key={key} className="grid gap-2 rounded-xl border border-border/70 p-3">
         <legend className="px-1 font-medium">{label}</legend><p className="text-muted-foreground">{hint}</p>
         <div className="flex flex-wrap gap-4">{(["pass", "fail", ...(optional ? ["not_applicable"] : [])] as Status[]).map((status) =>
@@ -95,7 +98,7 @@ export function RepairFunctionalTest({ orgId, caseId, expectedVersion, planId, c
       {error && <p role="alert" className="text-destructive">{error}</p>}
       <Button type="submit" disabled={pending || custodyBlocked} className="justify-self-start">{pending ? "در حال ثبت…" : "ثبت نسخهٔ تست"}</Button>
     </form> : !canRecord ? <p className="text-muted-foreground">ثبت تست به مجوز مستقل نیاز دارد.</p>
-      : <p className="text-destructive">تکمیل تعمیر و شناسایی دستگاه برای آزمون لازم است.</p>}
+      : <p className="text-destructive">{route === "replacement" ? "اجرای تعویض و شناسایی دستگاه جایگزین" : "تکمیل تعمیر و شناسایی دستگاه"} برای آزمون لازم است.</p>}
     {error && !canRecord && <p role="alert" className="text-destructive">{error}</p>}
   </CardContent></Card>;
 }

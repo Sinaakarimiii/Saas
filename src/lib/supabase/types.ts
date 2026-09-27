@@ -1836,10 +1836,32 @@ export type Database = {
           },
         ]
       }
+      repair_replacement_executions: {
+        Row: {
+          id: string; org_id: string; case_id: string; plan_id: string
+          original_device_id: string; replacement_device_id: string; allocation_id: string
+          replacement_stage_entered_at: string; execution_reference: string; evidence_reference: string
+          original_disposition_pending: string; executed_by: string; executed_at: string
+        }
+        Insert: {
+          id?: string; org_id: string; case_id: string; plan_id: string
+          original_device_id: string; replacement_device_id: string; allocation_id: string
+          replacement_stage_entered_at: string; execution_reference: string; evidence_reference: string
+          original_disposition_pending: string; executed_by: string; executed_at?: string
+        }
+        Update: {
+          id?: string; org_id?: string; case_id?: string; plan_id?: string
+          original_device_id?: string; replacement_device_id?: string; allocation_id?: string
+          replacement_stage_entered_at?: string; execution_reference?: string; evidence_reference?: string
+          original_disposition_pending?: string; executed_by?: string; executed_at?: string
+        }
+        Relationships: []
+      }
       repair_functional_tests: {
         Row: {
           case_id: string
-          completion_id: string
+          completion_id: string | null
+          execution_id: string | null
           configuration_evidence: string
           configuration_status: string
           custody_damage_epoch: number
@@ -1861,7 +1883,8 @@ export type Database = {
         }
         Insert: {
           case_id: string
-          completion_id: string
+          completion_id?: string | null
+          execution_id?: string | null
           configuration_evidence: string
           configuration_status: string
           custody_damage_epoch: number
@@ -1883,7 +1906,8 @@ export type Database = {
         }
         Update: {
           case_id?: string
-          completion_id?: string
+          completion_id?: string | null
+          execution_id?: string | null
           configuration_evidence?: string
           configuration_status?: string
           custody_damage_epoch?: number
@@ -3680,6 +3704,23 @@ export type Database = {
         Returns: Json
       }
       record_repair_functional_test: {
+        Args: {
+          p_case_id: string
+          p_configuration_evidence: string
+          p_configuration_status: string
+          p_expected_version: number
+          p_idempotency_key: string
+          p_identity_evidence: string
+          p_identity_status: string
+          p_org_id: string
+          p_position_evidence: string
+          p_position_status: string
+          p_power_evidence: string
+          p_power_status: string
+        }
+        Returns: Json
+      }
+      record_repair_replacement_functional_test: {
         Args: {
           p_case_id: string
           p_configuration_evidence: string

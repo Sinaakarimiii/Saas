@@ -105,6 +105,7 @@ export async function completeRepairForTestAction(raw: unknown): Promise<ActionR
 
 const functionalTestSchema = z.object({
   orgId: uuid, caseId: uuid, expectedVersion: z.number().int().positive(), idempotencyKey: uuid,
+  route: z.enum(["repair", "replacement"]).default("repair"),
   identityStatus: z.enum(["pass", "fail"]), identityEvidence: z.string().trim().min(1).max(500),
   powerStatus: z.enum(["pass", "fail"]), powerEvidence: z.string().trim().min(1).max(500),
   positionStatus: z.enum(["pass", "fail", "not_applicable"]), positionEvidence: z.string().trim().min(1).max(500),
@@ -345,7 +346,8 @@ export async function recordRepairFunctionalTestAction(raw: unknown): Promise<Ac
   const input = parsed.data;
   const supabase = await authorized(input.orgId, PERMISSIONS.REPAIR_FUNCTIONAL_TEST_RECORD);
   if (!supabase) return { error: "مجوز ثبت تست عملکردی را ندارید." };
-  const { data, error } = await supabase.rpc("record_repair_functional_test", {
+  const { data, error } = await supabase.rpc(input.route === "replacement"
+    ? "record_repair_replacement_functional_test" : "record_repair_functional_test", {
     p_org_id: input.orgId, p_case_id: input.caseId, p_expected_version: input.expectedVersion,
     p_idempotency_key: input.idempotencyKey,
     p_identity_status: input.identityStatus, p_identity_evidence: input.identityEvidence,

@@ -49,7 +49,7 @@ const eventNames: Record<string, string> = {
   plan_saved: "نسخهٔ برنامهٔ اقدام ثبت شد", plan_approval_recorded: "پاسخ یا مصوبهٔ برنامه ثبت شد",
   return_authorized: "اطلاع‌رسانی و مجوز عودت ثبت شد",
   return_outgoing_checked: "کنترل خروج عودت ثبت شد", return_outgoing_released: "کنترل خروج عودت آزاد شد",
-  functional_test_recorded: "آزمون عملکرد تعمیر ثبت شد", functional_test_released: "آزمون عملکرد تعمیر آزاد شد",
+  functional_test_recorded: "آزمون عملکرد دستگاه ثبت شد", functional_test_released: "آزمون عملکرد دستگاه آزاد شد",
   repair_outgoing_checked: "کنترل خروج تعمیر ثبت شد", repair_outgoing_released: "کنترل خروج تعمیر آزاد شد",
   payment_recorded: "سند پرداخت ثبت شد", payment_verified: "سند پرداخت تطبیق شد",
   payment_corrected: "سند پرداخت اشتباه اصلاح شد",
@@ -261,9 +261,25 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
       .eq("org_id", orgId).eq("case_id", caseId).order("completed_at", { ascending: false }).limit(1).maybeSingle()
     : { data: null, error: null };
   if (repairCompletionError) throw new Error("Could not load repair completion", { cause: repairCompletionError });
-  const { data: functionalTest, error: functionalTestError } = repair.stage === "test" && latestPlan?.route === "repair"
+  const { data: replacementExecution, error: replacementExecutionError } = repair.stage === "test" && latestPlan?.route === "replacement"
+    ? await supabase.from("repair_replacement_executions")
+      .select("id, plan_id, original_device_id, replacement_device_id, executed_at")
+      .eq("org_id", orgId).eq("case_id", caseId).order("executed_at", { ascending: false }).limit(1).maybeSingle()
+    : { data: null, error: null };
+  if (replacementExecutionError) throw new Error("Could not load replacement execution", { cause: replacementExecutionError });
+  const [{ data: replacementTestTransfers, error: replacementTestTransferError },
+    { data: replacementTestDiscrepancies, error: replacementTestDiscrepancyError }] = replacementExecution
+    ? await Promise.all([
+      supabase.from("repair_device_custody_transfers").select("id")
+        .eq("org_id", orgId).eq("device_id", replacementExecution.replacement_device_id).eq("status", "in_transit"),
+      supabase.from("repair_device_custody_discrepancies").select("id")
+        .eq("org_id", orgId).eq("device_id", replacementExecution.replacement_device_id).eq("status", "open"),
+    ]) : [{ data: [], error: null }, { data: [], error: null }];
+  if (replacementTestTransferError || replacementTestDiscrepancyError)
+    throw new Error("Could not load replacement test custody", { cause: replacementTestTransferError ?? replacementTestDiscrepancyError });
+  const { data: functionalTest, error: functionalTestError } = repair.stage === "test" && ["repair", "replacement"].includes(latestPlan?.route ?? "")
     ? await supabase.from("repair_functional_tests")
-      .select("id, revision, plan_id, completion_id, device_id, custody_damage_epoch, passed, recorded_at, identity_status, identity_evidence, power_status, power_evidence, position_status, position_evidence, configuration_status, configuration_evidence")
+      .select("id, revision, plan_id, completion_id, execution_id, device_id, custody_damage_epoch, passed, recorded_at, identity_status, identity_evidence, power_status, power_evidence, position_status, position_evidence, configuration_status, configuration_evidence")
       .eq("org_id", orgId).eq("case_id", caseId).order("revision", { ascending: false }).limit(1).maybeSingle()
     : { data: null, error: null };
   if (functionalTestError) throw new Error("Could not load functional test", { cause: functionalTestError });
@@ -583,6 +599,15 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
         latest={functionalTest} released={Boolean(functionalRelease)} custodyBlocked={repairCustodyBlocked}
         canRecord={ctx.can(PERMISSIONS.REPAIR_FUNCTIONAL_TEST_RECORD)}
         canRelease={ctx.can(PERMISSIONS.REPAIR_QUALITY_RELEASE)} />}
+      {repair.stage === "test" && latestPlan?.route === "replacement" && <RepairFunctionalTest
+        orgId={orgId} caseId={caseId} expectedVersion={repair.version} planId={latestPlan.id}
+        completionId={null} executionId={replacementExecution?.id ?? null} route="replacement"
+        deviceId={replacementExecution?.replacement_device_id ?? null}
+        damageEpoch={repair.custody_damage_epoch} stageEnteredAt={repair.stage_entered_at}
+        latest={functionalTest} released={Boolean(functionalRelease)}
+        custodyBlocked={Boolean(replacementTestTransfers?.length || replacementTestDiscrepancies?.length)}
+        canRecord={ctx.can(PERMISSIONS.REPAIR_FUNCTIONAL_TEST_RECORD)}
+        canRelease={ctx.can(PERMISSIONS.REPAIR_QUALITY_RELEASE)} />}
       {repair.stage === "test" && latestPlan?.route === "repair" && <RepairOutgoingCheck
         orgId={orgId} caseId={caseId} expectedVersion={repair.version} planId={latestPlan.id}
         testId={functionalTest?.id ?? null} deviceId={repair.verified_device_id}
@@ -677,8 +702,9 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
                   ? "ارجاع از کارشناسی به تصمیم" : event.details && typeof event.details === "object" && !Array.isArray(event.details) && event.details.transitionCode === "T03"
                     ? "ارجاع از تصمیم به تعمیر" : event.details && typeof event.details === "object" && !Array.isArray(event.details) && event.details.transitionCode === "T04"
                       ? "ارجاع از تصمیم به تعویض" : event.details && typeof event.details === "object" && !Array.isArray(event.details) && event.details.transitionCode === "T05"
-                        ? "ارجاع عودت به کنترل خروج" : event.details && typeof event.details === "object" && !Array.isArray(event.details) && event.details.transitionCode === "T06"
-                          ? "تکمیل تعمیر و ارجاع به آزمون" : event.details && typeof event.details === "object" && !Array.isArray(event.details) && event.details.transitionCode === "T08"
+                      ? "ارجاع عودت به کنترل خروج" : event.details && typeof event.details === "object" && !Array.isArray(event.details) && event.details.transitionCode === "T06"
+                        ? "تکمیل تعمیر و ارجاع به آزمون" : event.details && typeof event.details === "object" && !Array.isArray(event.details) && event.details.transitionCode === "T07"
+                          ? "اجرای تعویض و ارجاع دستگاه جایگزین به آزمون" : event.details && typeof event.details === "object" && !Array.isArray(event.details) && event.details.transitionCode === "T08"
                           ? "ارجاع کنترل خروج به تحویل" : event.details && typeof event.details === "object" && !Array.isArray(event.details) && event.details.transitionCode === "T09"
                             ? "تحویل تأیید و پرونده بسته شد" : event.details && typeof event.details === "object" && !Array.isArray(event.details) && event.details.transitionCode === "T11"
                             ? "بازگشت از تحویل به تست پس از آسیب" : "بازگشت از کارشناسی به پذیرش"
