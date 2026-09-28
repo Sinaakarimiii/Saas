@@ -93,3 +93,6 @@ The refurbish warehouse browser scenario is verified through first documented ha
 
 
 Issued replacement re-entry is verified through the new-case UI, physical intake with an actual synthetic PNG upload, independent current-custody baseline and diagnosis transition. The old closed case, issued stock allocation and delivery receipt are preserved. A second intake for the same verified IMEI without exception is rejected, leaving the raw request unreceived/unverified. See `docs/REPAIR_BROWSER_VALIDATION.md` for evidence and limits; this is sequential coverage, not concurrent-session validation.
+
+
+Two open browser views now verify stale-version rejection for diagnosis save, finalization and T02 confirmation. Only the current first-tab command changes the case; each stale second-tab command displays the reload-required message, and reload restores the current state. Database reads confirm one revision, one finalization and one transition, with no overwritten findings or duplicate audit events. This uses one shared Auth identity and ordered commands; independent-session approval/closure races and overlapping database transactions remain pending.

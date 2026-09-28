@@ -57,7 +57,7 @@ At 390 × 844, the final scrap summary and actor/evidence/approval text remain r
 
 ## Remaining checks
 - Additional incident variants and role boundaries beyond the completed post/courier damage runs.
-- Simultaneous-session stale-version, concurrent approval and closure attempts.
+- Independent-session concurrent approval/closure races; stale-page save/finalize/transition rejection is covered below.
 - Uploaded scrap documents/signature validation; currently evidence is a text reference.
 - Production rollout and full operational acceptance.
 
@@ -133,3 +133,21 @@ The replacement issued in the completed refurbish scenario (`900000000000012`) w
 Independent database reads confirmed that the new case's verified device ID equals the prior execution's replacement device ID; current staff custody belongs to the new case. Replacement stock remains `issued`, with the prior allocation case and issued receipt preserved; the prior receipt still identifies the same replacement and the previous case remains closed at version 28. The uploaded object has `image/png` metadata and 13,372 bytes. The rejected duplicate remains intake version 1 with no physical receipt or verified device, and exactly one open verified case exists for this device.
 
 No application changes were needed. This is sequential browser coverage of issued replacement re-entry after a closed prior case, actual synthetic image upload, custody baseline and duplicate rejection. It does not verify genuine device identity, signatures, cross-branch races, duplicate-exception approval, or available/allocated-stock rejection through the browser; existing SQL regression coverage remains separate.
+
+
+## Two open browser views — stale version rejection
+
+The re-entry case was opened in two browser tabs under the same local Auth account at diagnosis version 4. This deliberately tests stale browser state; it is not an independent-login or overlapping-database-transaction race.
+
+| Check | Observed result |
+| --- | --- |
+| Conflicting drafts | Each tab contains different findings. First tab saves diagnosis revision 1, case version 4 → 5. Second tab still shows the old no-diagnosis state and its own draft. |
+| Stale save | Second tab attempts its save with old version 4. UI reports `پرونده تغییر کرده است. صفحه را تازه کنید و دوباره بررسی کنید.` Its draft remains available; the server diagnosis is not overwritten. |
+| Reload recovery | Reloaded second tab displays the first tab's revision 1 and findings. |
+| Stale finalization | Both tabs open the same revision-1 confirmation at version 5. First confirmation finalizes once, version 5 → 6; the second confirmation is rejected with the version-conflict message inside the dialog. |
+| Stale stage confirmation | Second tab reloads to version 6. Both tabs open T02 confirmation. First confirmation reaches decision, version 6 → 7; the second remains on its stale diagnosis view and receives the version-conflict message. |
+| Reload after conflict | Second tab reloads into the correct decision stage, then the temporary test tab is closed. The primary case tab remains open. |
+
+An independent database read confirmed decision version 7, exactly one diagnosis revision with the first tab's findings, one `diagnosis_saved`, one `diagnosis_finalized`, and one T02 event. Rejected stale commands produced no duplicate diagnosis/finalization/transition event. No application code changes were required.
+
+Independent-identity approval/closure races and true concurrent database lock/replay behavior remain pending. Two open tabs sharing one login are not evidence for those scenarios.
