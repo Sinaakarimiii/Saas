@@ -49,14 +49,14 @@ A database read independently confirmed `closed`, version 25, `parts_received`, 
 
 The closed-case delivery summary had lost the replacement identity shown during delivery. Its title and IMEI now stay explicit after closure, selected by the receipt's device ID. Browser reload of the rebuilt production app verifies this display. Business rules are unchanged.
 
-This browser run covers the parts path at the desktop viewport with sequential accounts. The refurbish path and later warehouse movements have SQL regression coverage; their browser paths remain pending. Evidence remains a synthetic text reference; file upload and signature validation were not tested.
+This browser run covers the parts path at the desktop viewport with sequential accounts. The refurbish path and a later warehouse movement are also browser-verified in the separate scenario below. Evidence remains a synthetic text reference; file upload and signature validation were not tested.
 
 ## Responsive check
 
 At 390 × 844, the final scrap summary and actor/evidence/approval text remain readable. Mobile navigation opens and closes. Document scroll width equals client width (390 px); the stage strip keeps its own existing horizontal scrolling. The temporary viewport override was reset afterward. Input forms and confirmation dialogs were exercised at the default desktop viewport; their mobile submission flow is not claimed here.
 
 ## Remaining checks
-- Browser paths for refurbish disposition/later warehouse movement and issued replacement re-entry; additional incident variants and role boundaries beyond the completed post/courier damage runs.
+- Browser path for issued replacement re-entry; additional incident variants and role boundaries beyond the completed post/courier damage runs.
 - Simultaneous-session stale-version, concurrent approval and closure attempts.
 - Uploaded scrap documents/signature validation; currently evidence is a text reference.
 - Production rollout and full operational acceptance.
@@ -95,3 +95,23 @@ A separate synthetic fixture starts in delivery at version 20. One authorized ow
 Independent database read confirms damage epoch 1, old functional tests at epoch 0 and fresh revision 3 at epoch 1, first dispatch `returned`, second receipt bound to tracking `DAMAGE-TRACK-002`, stock `issued` against that exact receipt, and a resolved damage incident. The second dispatch retains the schema's `in_transit` value after receipt; destination receipt is the authoritative delivery fact. No enum change is asserted.
 
 The browser automation's initial datetime fill did not commit a valid value. After correcting the native day segment with keyboard input, the existing form accepted the valid deadline. This is not evidence of a product fix. Synthetic evidence references, no real carrier or payment, sequential session only. Local screenshot: `.local-db/repair-damage-browser-verified.png` (ignored; not published).
+
+
+## Refurbish receipt and later warehouse movement — browser validation
+
+A separate synthetic local case starts at delivery version 21, with replacement handover already recorded and original disposition `refurbish_proposed`. Earlier stages and handover were prepared with the warehouse SQL fixture; they are not browser coverage. Two existing local Auth accounts were used sequentially through normal logout/login.
+
+| Check | Observed result |
+| --- | --- |
+| Before original transfer | Refurbish receipt and closure disabled. |
+| First release and acceptance | Sender records original transfer; recipient independently records physical receipt `REFURB-IN-001`; versions 21 → 22 → 23. Current physical custodian changes; case handling owner stays separate. |
+| First warehouse finalization | Recipient records condition/items, explicitly stating refurbishment has not been performed; version 23 → 24. Finalization control disappears; recipient still has no close permission. |
+| Later release | Recipient sends original to a second warehouse and the other staff member; version 24 → 25. Both transfers remain visible. On the close-authorized account, closure is disabled while the second transfer is in transit. |
+| Second acceptance | New destination recipient records `REFURB-IN-002`; version 25 → 26. Closure remains disabled: the old warehouse receipt does not establish the new warehouse disposition. A new finalization control is available. |
+| New warehouse finalization | New recipient records condition/items against the accepted second transfer; version 26 → 27. Summary switches to second warehouse/receipt; closure becomes enabled. |
+| Cancel/confirm | Two-button close dialog requires no extra note; cancel leaves closure available. Confirmation closes at version 28. Both transfer references, current warehouse condition and replacement IMEI remain visible. |
+| Processing boundary | Case closes with refurbishment explicitly not started, consistent with the approved documented-handover policy. This does not verify warehouse processing or restored saleable stock. |
+
+An independent database read confirmed `closed`, version 28, `refurbish_received`, second accepted transfer and current warehouse recipient/custodian agreement. The second warehouse audit event retains complete `previousReceipt` and `currentReceipt` JSON, referencing `REFURB-IN-001` and `REFURB-IN-002`; closure outcome is `replaced_original_refurbish_received`.
+
+No application changes were needed for this scenario. The browser run uses the existing production build at the default desktop viewport and does not establish simultaneous-session safety. Evidence is a synthetic text reference; the fixture's intake storage metadata is not a real uploaded document.
