@@ -578,6 +578,10 @@ function mapDatabaseError(message: string): string {
   if (message.includes("VERIFIED_DEVICE_REQUIRED")) return "برای کنترل خروج، IMEI دستگاه باید با برچسب و مدرک تأیید شده باشد.";
   if (message.includes("RETURN_QC_REQUIRED")) return "آخرین کنترل خروج عودت باید برای همین دستگاه و برنامه، کامل و موفق باشد.";
   if (message.includes("REPAIR_PAYMENT_UNSETTLED")) return "مبلغ برنامهٔ تعمیر هنوز به‌طور کامل با مدارک مستقل تأیید نشده است.";
+  if (message.includes("REPLACEMENT_DELIVERY_TRANSITION_REQUIRED")) return "ارجاع معتبر تعویض به مرحلهٔ تحویل ثبت نشده است.";
+  if (message.includes("REPLACEMENT_ORIGINAL_DISPOSITION_REQUIRED")) return "برای بستن پرونده باید تعیین تکلیف دستگاه اولیه تکمیل شود.";
+  if (message.includes("REPLACEMENT_RECEIPT_MISMATCH")) return "اطلاعات رسید با دستگاه و گیرندهٔ تأییدشده تطابق ندارد.";
+  if (message.includes("REPLACEMENT_STOCK_ALREADY_ISSUED")) return "این دستگاه جایگزین قبلاً از موجودی خارج شده است.";
   if (message.includes("REPLACEMENT_PAYMENT_UNSETTLED")) return "مبلغ برنامهٔ تعویض پس از انتقال اعتبار و استرداد وجه هنوز تسویه نشده است.";
   if (message.includes("REPLACEMENT_FINANCIAL_BASIS_UNRESOLVED")) return "مبنای مالی برنامهٔ تعویض برای تحویل کامل نیست.";
   if (message.includes("REPLACEMENT_DELIVERY_STAGE_REQUIRED")) return "ارجاع دستگاه جایگزین به تحویل فقط از مرحلهٔ تست مجاز است.";
@@ -898,7 +902,8 @@ export async function recordRepairDeliveryReceiptAction(raw: unknown): Promise<A
     .eq("org_id", input.orgId).eq("case_id", input.caseId)
     .order("revision", { ascending: false }).limit(1).maybeSingle();
   const { data, error } = await supabase.rpc(deliveryPlan?.route === "repair"
-    ? "record_repaired_delivery_receipt" : "record_repair_delivery_receipt", {
+    ? "record_repaired_delivery_receipt" : deliveryPlan?.route === "replacement"
+      ? "record_replacement_delivery_receipt" : "record_repair_delivery_receipt", {
     p_org_id: input.orgId, p_case_id: input.caseId,
     p_expected_version: input.expectedVersion, p_idempotency_key: input.idempotencyKey,
     p_recipient_name: input.recipientName, p_recipient_role: input.recipientRole,

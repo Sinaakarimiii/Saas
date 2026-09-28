@@ -2663,6 +2663,8 @@ export type Database = {
       }
       repair_replacement_stock: {
         Row: {
+          issued_receipt_id: string | null
+          issued_at: string | null
           allocated_at: string | null
           allocated_case_id: string | null
           allocated_plan_id: string | null
@@ -2679,6 +2681,8 @@ export type Database = {
           status: string
         }
         Insert: {
+          issued_receipt_id?: string | null
+          issued_at?: string | null
           allocated_at?: string | null
           allocated_case_id?: string | null
           allocated_plan_id?: string | null
@@ -2695,6 +2699,8 @@ export type Database = {
           status?: string
         }
         Update: {
+          issued_receipt_id?: string | null
+          issued_at?: string | null
           allocated_at?: string | null
           allocated_case_id?: string | null
           allocated_plan_id?: string | null
@@ -3682,6 +3688,20 @@ export type Database = {
         Returns: Json
       }
       record_repaired_delivery_receipt: {
+        Args: {
+          p_authority_reference: string | null
+          p_case_id: string
+          p_expected_version: number
+          p_idempotency_key: string
+          p_org_id: string
+          p_receipt_evidence: string
+          p_receipt_reference: string
+          p_recipient_name: string
+          p_recipient_role: string
+        }
+        Returns: Json
+      }
+      record_replacement_delivery_receipt: {
         Args: {
           p_authority_reference: string | null
           p_case_id: string

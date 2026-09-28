@@ -11,11 +11,11 @@ import { Label } from "@/components/ui/label";
 type RecipientRole = "owner" | "authorized_representative" | "colleague";
 
 export function DeliveryReceipt({ orgId, caseId, expectedVersion, intendedRecipient, recipientRole,
-  authorityReference, receipt, canRecord, ready, route = "return" }: {
+  authorityReference, receipt, canRecord, ready, deviceIdentifier, route = "return" }: {
   orgId: string; caseId: string; expectedVersion: number; intendedRecipient: string;
   recipientRole: RecipientRole; authorityReference: string | null;
   receipt: { recipient_name: string; receipt_reference: string; received_at: string } | null;
-  canRecord: boolean; ready: boolean; route?: "return" | "repair";
+  canRecord: boolean; ready: boolean; deviceIdentifier?: string; route?: "return" | "repair" | "replacement";
 }) {
   const router = useRouter();
   const key = useRef<string | null>(null);
@@ -40,11 +40,12 @@ export function DeliveryReceipt({ orgId, caseId, expectedVersion, intendedRecipi
     finally { setPending(false); }
   }
 
-  return <Card><CardHeader><CardTitle>رسید تحویل واقعی · {route === "repair" ? "دستگاه تعمیرشده" : "عودت حضوری"}</CardTitle></CardHeader>
+  return <Card><CardHeader><CardTitle>رسید تحویل واقعی · {route === "replacement" ? "دستگاه جایگزین" : route === "repair" ? "دستگاه تعمیرشده" : "عودت حضوری"}</CardTitle></CardHeader>
     <CardContent className="grid gap-4 text-sm">
+      {deviceIdentifier && <p>IMEI دستگاه تحویلی: <strong dir="ltr" className="inline-block tabular-nums">{deviceIdentifier}</strong></p>}
       {receipt ? <p className="rounded-xl border border-primary/25 bg-primary/5 p-4">تحویل به {receipt.recipient_name} ثبت شد؛ مرجع دریافت: {receipt.receipt_reference}.</p>
         : <>
-          <p className="text-muted-foreground">این فرم فقط پس از دریافت واقعی دستگاه توسط گیرنده پر می‌شود. گیرندهٔ ثبت‌شده در کنترل خروج: {intendedRecipient}. {route === "repair" ? "ارسال پستی تعمیر هنوز در این مسیر فعال نیست." : "برای پست یا پیک، مسیر ارسال و رسید مقصد جداگانه لازم است."}</p>
+          <p className="text-muted-foreground">این فرم فقط پس از دریافت واقعی دستگاه توسط گیرنده پر می‌شود. گیرندهٔ ثبت‌شده در کنترل خروج: {intendedRecipient}. {route === "replacement" ? "تحویل این دستگاه در مسیر فعلی حضوری است." : "برای پست یا پیک، مسیر ارسال و رسید مقصد جداگانه لازم است."}</p>
           {!ready && <p className="text-destructive">کنترل خروج معتبر یا شرایط تحویل کامل نیست.</p>}
           {canRecord ? <form onSubmit={submit} className="grid gap-3">
             <p>تحویل به: <strong>{intendedRecipient}</strong> · {recipientRole === "owner" ? "مالک" : recipientRole === "colleague" ? "همکار" : "نمایندهٔ مجاز"}</p>

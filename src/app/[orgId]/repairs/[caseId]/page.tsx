@@ -279,6 +279,11 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
     ]) : [{ data: null, error: null }, { data: null, error: null }];
   if (replacementTestPositionError || replacementTestStockError)
     throw new Error("Could not load replacement stock position", { cause: replacementTestPositionError ?? replacementTestStockError });
+  const { data: replacementDevice, error: replacementDeviceError } = replacementExecution
+    ? await supabase.from("repair_devices").select("imei")
+      .eq("org_id", orgId).eq("id", replacementExecution.replacement_device_id).maybeSingle()
+    : { data: null, error: null };
+  if (replacementDeviceError) throw new Error("Could not load replacement identity", { cause: replacementDeviceError });
   const [{ data: replacementTestTransfers, error: replacementTestTransferError },
     { data: replacementTestDiscrepancies, error: replacementTestDiscrepancyError }] = replacementExecution
     ? await Promise.all([
@@ -289,7 +294,7 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
     ]) : [{ data: [], error: null }, { data: [], error: null }];
   if (replacementTestTransferError || replacementTestDiscrepancyError)
     throw new Error("Could not load replacement test custody", { cause: replacementTestTransferError ?? replacementTestDiscrepancyError });
-  const { data: functionalTest, error: functionalTestError } = repair.stage === "test" && ["repair", "replacement"].includes(latestPlan?.route ?? "")
+  const { data: functionalTest, error: functionalTestError } = ["test", "delivery"].includes(repair.stage) && ["repair", "replacement"].includes(latestPlan?.route ?? "")
     ? await supabase.from("repair_functional_tests")
       .select("id, revision, plan_id, completion_id, execution_id, device_id, custody_damage_epoch, passed, recorded_at, identity_status, identity_evidence, power_status, power_evidence, position_status, position_evidence, configuration_status, configuration_evidence")
       .eq("org_id", orgId).eq("case_id", caseId).order("revision", { ascending: false }).limit(1).maybeSingle()
@@ -410,7 +415,7 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
     && repairOutgoingCheck.custody_damage_epoch === repair.custody_damage_epoch && repairCheckMatchesStage
     && repairOutgoingCheck.identity_pass && repairOutgoingCheck.items_pass
     && repairOutgoingCheck.condition_pass && repairOutgoingCheck.transport_pass);
-  const replacementDeliveryReady = Boolean(repair.stage === "test" && repairFinanceReady
+  const replacementDeliveryReady = Boolean(["test", "delivery"].includes(repair.stage) && repairFinanceReady
     && latestPlan?.route === "replacement" && replacementExecution
     && replacementExecution.plan_id === latestPlan.id
     && replacementExecution.original_device_id === repair.verified_device_id
@@ -423,8 +428,13 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
     && custodyPosition?.case_id === caseId && custodyPosition.holder_kind === "staff"
     && !repairCustodyBlocked && !replacementTestTransfers?.length && !replacementTestDiscrepancies?.length
     && !(assignmentRequests ?? []).some((item) => item.status === "pending")
-    && !openDamage && currentFunctionalRelease
-    && repairOutgoingCheck && repairOutgoingRelease && repairCheckMatchesStage
+    && !openDamage && (repair.stage === "test" ? currentFunctionalRelease : Boolean(functionalRelease
+      && functionalTest?.passed && functionalTest.execution_id === replacementExecution.id
+      && functionalTest.custody_damage_epoch === repair.custody_damage_epoch))
+    && repairOutgoingCheck && repairOutgoingRelease && (repair.stage === "test" ? repairCheckMatchesStage : (events ?? []).some((event) =>
+      event.event_type === "stage_transition" && event.details && typeof event.details === "object"
+      && !Array.isArray(event.details) && event.details.transitionCode === "T08"
+      && event.details.replacementOutgoingCheckId === repairOutgoingCheck.id))
     && repairOutgoingCheck.protocol_code === "replacement_outgoing_v1"
     && repairOutgoingCheck.plan_id === latestPlan.id
     && repairOutgoingCheck.functional_test_id === functionalTest?.id
@@ -664,12 +674,15 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
         canRecord={ctx.can(PERMISSIONS.REPAIR_REPLACEMENT_OUTGOING_QC_RECORD)}
         canRelease={ctx.can(PERMISSIONS.REPAIR_QUALITY_RELEASE)} />}
 
-      {repair.stage === "delivery" && latestPlan?.route === "replacement" && replacementExecution && <Card>
-        <CardHeader><CardTitle>تحویل دستگاه جایگزین</CardTitle></CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          کنترل خروج دستگاه جایگزین آزاد و پرونده به تحویل ارجاع شده است. دریافت واقعی گیرنده هنوز ثبت نشده و پرونده باز است.
-        </CardContent>
-      </Card>}
+      {repair.stage === "delivery" && latestPlan?.route === "replacement" && repairOutgoingCheck && <>
+        <DeliveryReceipt orgId={orgId} caseId={caseId} expectedVersion={repair.version}
+          intendedRecipient={repairOutgoingCheck.intended_recipient}
+          recipientRole={repairOutgoingCheck.recipient_role as "owner" | "authorized_representative" | "colleague"}
+          authorityReference={repairOutgoingCheck.authority_reference} receipt={deliveryReceipt}
+          canRecord={ctx.can(PERMISSIONS.REPAIR_DELIVERY_RECEIVE)}
+          ready={replacementDeliveryReady} deviceIdentifier={replacementDevice?.imei} route="replacement" />
+        <p className="text-sm text-muted-foreground">پرونده تا تعیین تکلیف مستند دستگاه اولیه باز می‌ماند.</p>
+      </>}
 
       {repair.stage === "delivery" && latestPlan?.route === "return" && outgoingCheck && !activeDispatch && <DeliveryReceipt
         orgId={orgId} caseId={caseId} expectedVersion={repair.version}
