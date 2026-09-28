@@ -60,3 +60,18 @@ At 390 × 844, the final scrap summary and actor/evidence/approval text remain r
 - Simultaneous-session stale-version, concurrent approval and closure attempts.
 - Uploaded scrap documents/signature validation; currently evidence is a text reference.
 - Production rollout and full operational acceptance.
+
+## Replacement post delivery — browser validation
+
+A new synthetic local case was prepared with the existing remote SQL fixture through delivery version 20. Intake, execution and QC in this preparation are server-side fixture setup, not browser coverage. The current custodian then used the production-build UI to dispatch by post to the approved colleague recipient.
+
+| Check | Observed result |
+| --- | --- |
+| Dispatch | Replacement IMEI and tracking code shown; status changes to in transit. In-person receipt control disappears. |
+| Before destination receipt | Original return and case closure remain disabled. Original location/custodian still show the workshop/current staff member. |
+| Destination receipt | Separate reference/evidence recorded; destination confirmation summary replaces inputs. Original-return control becomes available; closure remains disabled. |
+| Original return | Independent original-device receipt/condition recorded; original custody changes to the approved recipient; closure becomes available. |
+| Closure dialog | Cancel preserves delivery stage; confirm closes without requiring an extra note. |
+| Closed case | Replacement IMEI and destination receipt remain explicit; separate original-return receipt and history remain visible; mutable controls disappear. |
+
+Independent database read confirms closed version 24, post receipt bound to the executed replacement, stock issued with the exact receipt, and return bound to the original device. This is one sequential owner session, not a race or two-person delivery test. All references, address and carrier are synthetic. Actual carrier integration and uploaded receipt validation are not covered. Courier and damage/physical-return/T11/retest/new-shipment UI paths remain pending. Local screenshot: `.local-db/repair-remote-post-browser-verified.png` (ignored; not published).
