@@ -96,3 +96,6 @@ Issued replacement re-entry is verified through the new-case UI, physical intake
 
 
 Two open browser views now verify stale-version rejection for diagnosis save, finalization and T02 confirmation. Only the current first-tab command changes the case; each stale second-tab command displays the reload-required message, and reload restores the current state. Database reads confirm one revision, one finalization and one transition, with no overwritten findings or duplicate audit events. This uses one shared Auth identity and ordered commands; independent-session approval/closure races and overlapping database transactions remain pending.
+
+
+Overlapping PostgreSQL transaction checks now pass for two independent permitted scrap approvers and two permitted case closers using different request keys. The losing request is observed waiting on a lock and then rejected for stale case version. Same-identity/key retries also wait and return identical responses. Assertions verify one approval, one T09 event and one command receipt for each operation, with the case closed at version 24. The reproducible local runner is `scripts/verify-repair-concurrency.py`; scope/limits are in `docs/REPAIR_CONCURRENCY_VALIDATION.md`. Concurrent IMEI intake, simultaneous independent browser logins and broader multi-user acceptance remain pending.

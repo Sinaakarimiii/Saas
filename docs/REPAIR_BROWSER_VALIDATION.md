@@ -57,7 +57,7 @@ At 390 × 844, the final scrap summary and actor/evidence/approval text remain r
 
 ## Remaining checks
 - Additional incident variants and role boundaries beyond the completed post/courier damage runs.
-- Independent-session concurrent approval/closure races; stale-page save/finalize/transition rejection is covered below.
+- Simultaneous independent browser logins; overlapping approval/closure RPC transactions are covered in `REPAIR_CONCURRENCY_VALIDATION.md`.
 - Uploaded scrap documents/signature validation; currently evidence is a text reference.
 - Production rollout and full operational acceptance.
 
@@ -150,4 +150,4 @@ The re-entry case was opened in two browser tabs under the same local Auth accou
 
 An independent database read confirmed decision version 7, exactly one diagnosis revision with the first tab's findings, one `diagnosis_saved`, one `diagnosis_finalized`, and one T02 event. Rejected stale commands produced no duplicate diagnosis/finalization/transition event. No application code changes were required.
 
-Independent-identity approval/closure races and true concurrent database lock/replay behavior remain pending. Two open tabs sharing one login are not evidence for those scenarios.
+Independent-identity approval/closure races and overlapping database lock/replay behavior are now covered separately in `REPAIR_CONCURRENCY_VALIDATION.md`. Two open tabs sharing one login are not evidence for those scenarios; simultaneous independent browser logins remain pending.
