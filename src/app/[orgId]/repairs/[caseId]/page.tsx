@@ -805,8 +805,16 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
         canFollowup={ctx.can(PERMISSIONS.REPAIR_DELIVERY_INCIDENT_FOLLOWUP)}
         canResolve={ctx.can(PERMISSIONS.REPAIR_DELIVERY_INCIDENT_RESOLVE)}
         canReturn={ctx.can(PERMISSIONS.REPAIR_DELIVERY_RETURN_RECEIVE)} /></div>}
-      {repair.stage === "closed" && deliveryReceipt && <Card><CardHeader><CardTitle>رسید تحویل نهایی</CardTitle></CardHeader>
-        <CardContent className="text-sm">دستگاه به {deliveryReceipt.recipient_name} {deliveryReceipt.method === "in_person" ? "حضوری" : "در مقصد"} تحویل شد؛ مرجع دریافت: {deliveryReceipt.receipt_reference}.</CardContent></Card>}
+      {repair.stage === "closed" && deliveryReceipt && <Card><CardHeader><CardTitle>
+        رسید تحویل نهایی{deliveryReceipt.device_id === replacementExecution?.replacement_device_id ? " · دستگاه جایگزین"
+          : deliveryReceipt.device_id === repair.verified_device_id ? " · دستگاه اصلی" : ""}
+      </CardTitle></CardHeader><CardContent className="grid gap-2 text-sm">
+        {deliveryReceipt.device_id === replacementExecution?.replacement_device_id && replacementDevice?.imei
+          ? <p>IMEI دستگاه تحویلی: <strong dir="ltr">{replacementDevice.imei}</strong></p>
+          : deliveryReceipt.device_id === repair.verified_device_id && device?.imei
+            ? <p>IMEI دستگاه تحویلی: <strong dir="ltr">{device.imei}</strong></p> : null}
+        <p>دستگاه به {deliveryReceipt.recipient_name} {deliveryReceipt.method === "in_person" ? "حضوری" : "در مقصد"} تحویل شد؛ مرجع دریافت: {deliveryReceipt.receipt_reference}.</p>
+      </CardContent></Card>}
 
       {repair.stage === "closed" && scrap && <ReplacementScrap orgId={orgId} caseId={caseId}
         expectedVersion={repair.version} currentUserId={ctx.user.id} deviceIdentifier={device?.imei}
