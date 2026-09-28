@@ -544,7 +544,7 @@ function mapDatabaseError(message: string): string {
   if (message.includes("CUSTOMER_APPROVAL_REQUIRED")) return "رضایت مشتری برای آخرین نسخهٔ برنامه ثبت نشده یا رد شده است.";
   if (message.includes("REPLACEMENT_APPROVAL_REQUIRED")) return "مصوبهٔ مستقل تعویض برای آخرین نسخه ثبت نشده یا رد شده است.";
   if (message.includes("REPLACEMENT_IMEI_EXISTS")) return "این IMEI قبلاً در سازمان ثبت شده است.";
-  if (message.includes("REPLACEMENT_STOCK_NOT_ORIGINAL")) return "این دستگاه در موجودی جایگزین ثبت شده و نمی‌تواند دستگاه اصلی پرونده باشد.";
+  if (message.includes("REPLACEMENT_STOCK_NOT_ORIGINAL")) return "پذیرش مجدد این دستگاه پس از تحویل مستند دستگاه جایگزین و بسته‌شدن پروندهٔ قبلی ممکن است. موجودی آزاد یا تخصیص‌یافته قابل پذیرش نیست.";
   if (message.includes("REPLACEMENT_STOCK_UNAVAILABLE")) return "دستگاه جایگزین دیگر آزاد نیست یا مدل آن با برنامه یکسان نیست.";
   if (message.includes("REPLACEMENT_ALREADY_ALLOCATED")) return "برای این پرونده دستگاه جایگزین تخصیص داده شده است.";
   if (message.includes("REPLACEMENT_EXECUTION_REQUIRED")) return "اجرای واقعی تعویض دستگاه مشخص هنوز ثبت نشده است.";

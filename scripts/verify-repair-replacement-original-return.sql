@@ -79,6 +79,7 @@ grant execute on function pg_temp.allow_clerk_original_return(uuid) to authentic
 set local role authenticated;
 do $$
 declare f record; c jsonb; d jsonb; p jsonb; s jsonb; a jsonb; e jsonb;
+ intake jsonb; replacement_intake jsonb; issue_before jsonb; prior_case_before jsonb; receipt_before jsonb;
  case_id uuid; path text; retry uuid; original_id uuid; failed jsonb; v_passed jsonb; released jsonb; bad_check jsonb; good_check jsonb; moved jsonb; test_key uuid;
 begin
  select * into f from replacement_fixture;
@@ -117,8 +118,26 @@ begin
  end;
  s:=public.receive_repair_replacement_stock(f.org_id,'900000000000012','GPS new','Stock shelf',
   f.owner_id,'stock-label-photo','stock-entry-execution',gen_random_uuid());
+ -- Available stock cannot enter a customer's repair case.
+ intake:=public.create_repair_case(f.org_id,'GPS new','900000000000012','Customer','Later fault','normal','walk_in',gen_random_uuid());
+ path:=f.org_id||'/'||(intake->>'caseId')||'/'||gen_random_uuid()||'.png';
+ perform pg_temp.replacement_evidence(path,f.owner_id);
+ begin
+  perform public.receive_repair_device(f.org_id,(intake->>'caseId')::uuid,1,gen_random_uuid(),
+   'walk_in','New workshop','Owner','charger','900000000000012',path);
+  raise exception 'Available stock accepted as customer repair';
+ exception when check_violation then
+  if sqlerrm<>'REPLACEMENT_STOCK_NOT_ORIGINAL' then raise; end if;
+ end;
  a:=public.allocate_repair_replacement_device(f.org_id,case_id,(s->>'deviceId')::uuid,
   (p->>'planId')::uuid,'allocation-execution',10,gen_random_uuid());
+ begin
+  perform public.receive_repair_device(f.org_id,(intake->>'caseId')::uuid,1,gen_random_uuid(),
+   'walk_in','New workshop','Owner','charger','900000000000012',path);
+  raise exception 'Allocated stock accepted as customer repair';
+ exception when check_violation then
+  if sqlerrm<>'REPLACEMENT_STOCK_NOT_ORIGINAL' then raise; end if;
+ end;
  begin
   perform public.execute_repair_replacement_for_test(f.org_id,case_id,11,gen_random_uuid(),
    'execution-no-original-baseline','work-order');
@@ -333,6 +352,14 @@ begin
   if sqlerrm<>'REPLACEMENT_ORIGINAL_DISPOSITION_REQUIRED' then raise; end if;
  end;
 
+ -- Issuing the replacement is insufficient until the earlier case closes.
+ begin
+  perform public.receive_repair_device(f.org_id,(intake->>'caseId')::uuid,1,gen_random_uuid(),
+   'walk_in','New workshop','Owner','charger','900000000000012',path);
+  raise exception 'Issued replacement from open case accepted';
+ exception when check_violation then
+  if sqlerrm<>'REPLACEMENT_STOCK_NOT_ORIGINAL' then raise; end if;
+ end;
  perform set_config('request.jwt.claim.sub',f.clerk_id::text,true);
  begin
   perform public.record_replacement_original_return(f.org_id,case_id,21,gen_random_uuid(),'original-return','signed-original','broken original with charger');
@@ -388,6 +415,46 @@ begin
  if not exists(select 1 from public.repair_case_events ev where ev.org_id=f.org_id and ev.case_id=(c->>'caseId')::uuid
   and ev.details->>'outcome'='replaced_original_returned' and ev.details->>'originalReturnId' is not null) then
   raise exception 'Final replacement outcome event missing'; end if;
+ -- A customer can bring the issued replacement back without erasing its provenance.
+ select to_jsonb(stock) into issue_before from public.repair_replacement_stock stock
+  where org_id=f.org_id and device_id=(s->>'deviceId')::uuid;
+ select to_jsonb(rc) into prior_case_before from public.repair_cases rc where id=case_id;
+ select to_jsonb(receipt) into receipt_before from public.repair_delivery_receipts receipt
+  where org_id=f.org_id and receipt.case_id=(c->>'caseId')::uuid;
+ path:=f.org_id||'/'||(intake->>'caseId')||'/'||gen_random_uuid()||'.png';
+ perform pg_temp.replacement_evidence(path,f.owner_id);
+ retry:=gen_random_uuid();
+ replacement_intake:=public.receive_repair_device(f.org_id,(intake->>'caseId')::uuid,1,retry,
+  'walk_in','New workshop','Owner','charger','900000000000012',path);
+ if replacement_intake->>'verifiedDeviceId'<>s->>'deviceId'
+  or public.receive_repair_device(f.org_id,(intake->>'caseId')::uuid,1,retry,
+   'walk_in','New workshop','Owner','charger','900000000000012',path)<>replacement_intake then
+  raise exception 'Replacement later intake/replay identity mismatch'; end if;
+ perform pg_temp.later_intake_time((intake->>'caseId')::uuid);
+ perform public.record_repair_device_custody_baseline(f.org_id,(intake->>'caseId')::uuid,'New workshop',f.owner_id,
+  'replacement-return-physical-receipt',2,gen_random_uuid());
+ if not exists(select 1 from public.repair_device_custody_positions pos
+  where org_id=f.org_id and device_id=(s->>'deviceId')::uuid and pos.case_id=(intake->>'caseId')::uuid
+   and holder_kind='staff' and location='New workshop' and custodian_user_id=f.owner_id) then
+  raise exception 'Replacement later intake custody missing'; end if;
+ if issue_before is distinct from (select to_jsonb(stock) from public.repair_replacement_stock stock
+   where org_id=f.org_id and device_id=(s->>'deviceId')::uuid)
+  or prior_case_before is distinct from (select to_jsonb(rc) from public.repair_cases rc where id=case_id)
+  or receipt_before is distinct from (select to_jsonb(receipt) from public.repair_delivery_receipts receipt
+    where org_id=f.org_id and receipt.case_id=(c->>'caseId')::uuid) then
+  raise exception 'Replacement return changed previous issue/case/receipt'; end if;
+ perform public.transition_repair_case(f.org_id,(intake->>'caseId')::uuid,3,'T01',gen_random_uuid());
+ -- The organization-wide duplicate rule still protects this replacement serial.
+ replacement_intake:=public.create_repair_case(f.org_id,'GPS new','900000000000012','Customer','Duplicate','normal','walk_in',gen_random_uuid());
+ path:=f.org_id||'/'||(replacement_intake->>'caseId')||'/'||gen_random_uuid()||'.png';
+ perform pg_temp.replacement_evidence(path,f.owner_id);
+ begin
+  perform public.receive_repair_device(f.org_id,(replacement_intake->>'caseId')::uuid,1,gen_random_uuid(),
+   'walk_in','Other workshop','Owner','charger','900000000000012',path);
+  raise exception 'Duplicate repair for issued replacement accepted';
+ exception when unique_violation then
+  if sqlerrm<>'ACTIVE_REPAIR_CASE_EXISTS' then raise; end if;
+ end;
  -- A returned original may be physically received again in a new case after closure.
  c:=public.create_repair_case(f.org_id,'GPS','new-repair','Customer','New diagnosis','normal','walk_in',gen_random_uuid());
  path:=f.org_id||'/'||(c->>'caseId')||'/'||gen_random_uuid()||'.png';
@@ -400,7 +467,7 @@ begin
  if not exists(select 1 from public.repair_device_custody_positions where org_id=f.org_id and device_id=original_id
   and repair_device_custody_positions.case_id=(c->>'caseId')::uuid and holder_kind='staff') then
   raise exception 'Returned original could not establish new intake custody'; end if;
- raise notice 'Original return, independent receipt, guarded closure, replay and later intake passed';
+ raise notice 'Original return, guarded closure, stock eligibility, replacement re-entry, provenance, duplicate guard and later intake passed';
 
 
 end $$;
