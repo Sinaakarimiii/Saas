@@ -56,7 +56,7 @@ This browser run covers the parts path at the desktop viewport with sequential a
 At 390 × 844, the final scrap summary and actor/evidence/approval text remain readable. Mobile navigation opens and closes. Document scroll width equals client width (390 px); the stage strip keeps its own existing horizontal scrolling. The temporary viewport override was reset afterward. Input forms and confirmation dialogs were exercised at the default desktop viewport; their mobile submission flow is not claimed here.
 
 ## Remaining checks
-- Browser paths for refurbish disposition/later warehouse movement, remote replacement shipping, damage return/retest and issued replacement re-entry.
+- Browser paths for refurbish disposition/later warehouse movement and issued replacement re-entry; additional incident variants and role boundaries beyond the completed post/courier damage runs.
 - Simultaneous-session stale-version, concurrent approval and closure attempts.
 - Uploaded scrap documents/signature validation; currently evidence is a text reference.
 - Production rollout and full operational acceptance.
@@ -74,4 +74,24 @@ A new synthetic local case was prepared with the existing remote SQL fixture thr
 | Closure dialog | Cancel preserves delivery stage; confirm closes without requiring an extra note. |
 | Closed case | Replacement IMEI and destination receipt remain explicit; separate original-return receipt and history remain visible; mutable controls disappear. |
 
-Independent database read confirms closed version 24, post receipt bound to the executed replacement, stock issued with the exact receipt, and return bound to the original device. This is one sequential owner session, not a race or two-person delivery test. All references, address and carrier are synthetic. Actual carrier integration and uploaded receipt validation are not covered. Courier and damage/physical-return/T11/retest/new-shipment UI paths remain pending. Local screenshot: `.local-db/repair-remote-post-browser-verified.png` (ignored; not published).
+Independent database read confirms closed version 24, post receipt bound to the executed replacement, stock issued with the exact receipt, and return bound to the original device. This is one sequential owner session, not a race or two-person delivery test. All references, address and carrier are synthetic. Actual carrier integration and uploaded receipt validation are not covered. Courier damage recovery is covered in the following run. Local screenshot: `.local-db/repair-remote-post-browser-verified.png` (ignored; not published).
+
+## Replacement courier damage recovery — browser validation
+
+A separate synthetic fixture starts in delivery at version 20. One authorized owner session exercised the entire recovery loop in the production-build UI:
+
+| Check | Observed result |
+| --- | --- |
+| First courier dispatch | Replacement identity/tracking shown; original stays in workshop custody. |
+| Damage incident | Open damage blocks destination receipt and closure; physical-return form is shown. |
+| Physical return | Separate reference/evidence, location and condition recorded; incident resolved; new dispatch disabled pending fresh quality controls. |
+| T11 | Cancel keeps delivery stage; confirm moves to test. Prior test/outgoing check explicitly marked invalid. |
+| Fresh functional test | Revision 3 succeeds but T08 remains disabled until independent test release and a fresh outgoing check/release. |
+| Fresh outgoing check | Revision 3 binds the approved colleague recipient and authority. T08 becomes available only after release. |
+| Second courier dispatch | New tracking/reference/evidence accepted after T08; the first return/incident remains in history. |
+| Second destination receipt | Receipt accepted for the second shipment; independent original return still required before closure. |
+| Closure | Original return recorded; T09 closes at version 33. Replacement receipt, original return and damage/retest events remain visible. |
+
+Independent database read confirms damage epoch 1, old functional tests at epoch 0 and fresh revision 3 at epoch 1, first dispatch `returned`, second receipt bound to tracking `DAMAGE-TRACK-002`, stock `issued` against that exact receipt, and a resolved damage incident. The second dispatch retains the schema's `in_transit` value after receipt; destination receipt is the authoritative delivery fact. No enum change is asserted.
+
+The browser automation's initial datetime fill did not commit a valid value. After correcting the native day segment with keyboard input, the existing form accepted the valid deadline. This is not evidence of a product fix. Synthetic evidence references, no real carrier or payment, sequential session only. Local screenshot: `.local-db/repair-damage-browser-verified.png` (ignored; not published).
