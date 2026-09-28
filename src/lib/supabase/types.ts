@@ -3460,6 +3460,21 @@ export type Database = {
         }
         Returns: Json
       }
+      confirm_replacement_delivery_receipt: {
+        Args: {
+          p_authority_reference: string | null
+          p_case_id: string
+          p_dispatch_id: string
+          p_expected_version: number
+          p_idempotency_key: string
+          p_org_id: string
+          p_receipt_evidence: string
+          p_receipt_reference: string
+          p_recipient_name: string
+          p_recipient_role: string
+        }
+        Returns: Json
+      }
       confirm_repaired_delivery_receipt: {
         Args: {
           p_authority_reference: string | null
@@ -3655,6 +3670,21 @@ export type Database = {
         Returns: Json
       }
       record_repair_delivery_dispatch: {
+        Args: {
+          p_carrier: string
+          p_case_id: string
+          p_destination_address: string
+          p_dispatch_evidence: string
+          p_dispatch_reference: string
+          p_expected_version: number
+          p_idempotency_key: string
+          p_method: string
+          p_org_id: string
+          p_tracking_code: string
+        }
+        Returns: Json
+      }
+      record_replacement_delivery_dispatch: {
         Args: {
           p_carrier: string
           p_case_id: string

@@ -544,6 +544,7 @@ function mapDatabaseError(message: string): string {
   if (message.includes("CUSTOMER_APPROVAL_REQUIRED")) return "رضایت مشتری برای آخرین نسخهٔ برنامه ثبت نشده یا رد شده است.";
   if (message.includes("REPLACEMENT_APPROVAL_REQUIRED")) return "مصوبهٔ مستقل تعویض برای آخرین نسخه ثبت نشده یا رد شده است.";
   if (message.includes("REPLACEMENT_IMEI_EXISTS")) return "این IMEI قبلاً در سازمان ثبت شده است.";
+  if (message.includes("REPLACEMENT_DISPATCH_MISMATCH")) return "حوالهٔ ارسال با دستگاه جایگزین و گیرندهٔ تأییدشدهٔ کنترل خروج مطابقت ندارد.";
   if (message.includes("REPLACEMENT_STOCK_NOT_ORIGINAL")) return "پذیرش مجدد این دستگاه پس از تحویل مستند دستگاه جایگزین و بسته‌شدن پروندهٔ قبلی ممکن است. موجودی آزاد یا تخصیص‌یافته قابل پذیرش نیست.";
   if (message.includes("REPLACEMENT_STOCK_UNAVAILABLE")) return "دستگاه جایگزین دیگر آزاد نیست یا مدل آن با برنامه یکسان نیست.";
   if (message.includes("REPLACEMENT_ALREADY_ALLOCATED")) return "برای این پرونده دستگاه جایگزین تخصیص داده شده است.";
@@ -941,7 +942,8 @@ export async function recordRepairDeliveryDispatchAction(raw: unknown): Promise<
     .eq("org_id", input.orgId).eq("case_id", input.caseId)
     .order("revision", { ascending: false }).limit(1).maybeSingle();
   const { data, error } = await supabase.rpc(deliveryPlan?.route === "repair"
-    ? "record_repaired_delivery_dispatch" : "record_repair_delivery_dispatch", {
+    ? "record_repaired_delivery_dispatch" : deliveryPlan?.route === "replacement"
+      ? "record_replacement_delivery_dispatch" : "record_repair_delivery_dispatch", {
     p_org_id: input.orgId, p_case_id: input.caseId, p_expected_version: input.expectedVersion,
     p_idempotency_key: input.idempotencyKey, p_method: input.method, p_carrier: input.carrier,
     p_destination_address: input.destinationAddress, p_tracking_code: input.trackingCode,
@@ -965,7 +967,8 @@ export async function confirmRepairDeliveryReceiptAction(raw: unknown): Promise<
     .eq("org_id", input.orgId).eq("case_id", input.caseId)
     .order("revision", { ascending: false }).limit(1).maybeSingle();
   const { data, error } = await supabase.rpc(deliveryPlan?.route === "repair"
-    ? "confirm_repaired_delivery_receipt" : "confirm_repair_delivery_receipt", {
+    ? "confirm_repaired_delivery_receipt" : deliveryPlan?.route === "replacement"
+      ? "confirm_replacement_delivery_receipt" : "confirm_repair_delivery_receipt", {
     p_org_id: input.orgId, p_case_id: input.caseId, p_dispatch_id: input.dispatchId,
     p_expected_version: input.expectedVersion, p_idempotency_key: input.idempotencyKey,
     p_recipient_name: input.recipientName, p_recipient_role: input.recipientRole,

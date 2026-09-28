@@ -273,7 +273,7 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
     { data: replacementTestStock, error: replacementTestStockError }] = replacementExecution
     ? await Promise.all([
       supabase.from("repair_device_custody_positions")
-        .select("case_id, location, custodian_user_id, holder_kind")
+        .select("case_id, location, custodian_user_id, holder_kind, external_reference")
         .eq("org_id", orgId).eq("device_id", replacementExecution.replacement_device_id).maybeSingle(),
       supabase.from("repair_replacement_stock")
         .select("status, allocated_case_id, allocated_plan_id, location, custodian_user_id")
@@ -357,7 +357,7 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
   if (warehouseReceiptError) throw new Error("Could not load original warehouse receipt", { cause: warehouseReceiptError });
   const { data: deliveryDispatch, error: deliveryDispatchError } = ["delivery", "closed"].includes(repair.stage)
     ? await supabase.from("repair_delivery_dispatches")
-      .select("id, method, carrier, destination_name, destination_role, authority_reference, destination_address, tracking_code, dispatch_reference, dispatched_at, outgoing_check_id, repair_outgoing_check_id, status")
+      .select("id, method, carrier, destination_name, destination_role, authority_reference, destination_address, tracking_code, dispatch_reference, dispatched_at, device_id, outgoing_check_id, repair_outgoing_check_id, status")
       .eq("org_id", orgId).eq("case_id", caseId).order("dispatched_at", { ascending: false }).limit(1).maybeSingle()
     : { data: null, error: null };
   if (deliveryDispatchError) throw new Error("Could not load delivery dispatch", { cause: deliveryDispatchError });
@@ -390,8 +390,8 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
   if (deliveryFollowupError) throw new Error("Could not load delivery followups", { cause: deliveryFollowupError });
   const openDeliveryIncident = (deliveryIncidents ?? []).some((item) => item.status === "open");
   const openDamage = (openDamageCount ?? 0) > 0;
-  const damageNeedsRetest = Boolean(repair.stage === "delivery" && (latestPlan?.route === "repair" ? repairOutgoingCheck : outgoingCheck)
-    && repair.custody_damage_epoch > (latestPlan?.route === "repair" ? repairOutgoingCheck : outgoingCheck)!.custody_damage_epoch);
+  const damageNeedsRetest = Boolean(repair.stage === "delivery" && (["repair", "replacement"].includes(latestPlan?.route ?? "") ? repairOutgoingCheck : outgoingCheck)
+    && repair.custody_damage_epoch > (["repair", "replacement"].includes(latestPlan?.route ?? "") ? repairOutgoingCheck : outgoingCheck)!.custody_damage_epoch);
   const damageReturned = Boolean(damageReturn) || (custodyDiscrepancies ?? []).some((item) => item.kind === "damage"
     && new Date(item.recorded_at).getTime() >= new Date(repair.stage_entered_at).getTime()
     && (custodyTransfers ?? []).some((transfer) => transfer.id === item.transfer_id && transfer.status === "returned"));
@@ -436,13 +436,18 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
     && replacementTestStock?.status === "allocated"
     && replacementTestStock.allocated_case_id === caseId
     && replacementTestStock.allocated_plan_id === latestPlan.id
-    && replacementTestPosition?.case_id === caseId && replacementTestPosition.holder_kind === "staff"
-    && replacementTestPosition.custodian_user_id === replacementTestStock.custodian_user_id
-    && replacementTestPosition.location === replacementTestStock.location
+    && replacementTestPosition?.case_id === caseId
+    && (replacementTestPosition.holder_kind === "staff"
+      && replacementTestPosition.custodian_user_id === replacementTestStock.custodian_user_id
+      && replacementTestPosition.location === replacementTestStock.location
+      || repair.stage === "delivery" && replacementTestPosition.holder_kind === "carrier"
+        && activeDispatch?.device_id === replacementExecution.replacement_device_id
+        && activeDispatch.repair_outgoing_check_id === repairOutgoingCheck?.id
+        && activeDispatch.dispatch_reference === replacementTestPosition.external_reference)
     && custodyPosition?.case_id === caseId && custodyPosition.holder_kind === "staff"
     && !repairCustodyBlocked && !replacementTestTransfers?.length && !replacementTestDiscrepancies?.length
     && !(assignmentRequests ?? []).some((item) => item.status === "pending")
-    && !openDamage && (repair.stage === "test" ? currentFunctionalRelease : Boolean(functionalRelease
+    && !openDamage && !openDeliveryIncident && (repair.stage === "test" ? currentFunctionalRelease : Boolean(functionalRelease
       && functionalTest?.passed && functionalTest.execution_id === replacementExecution.id
       && functionalTest.custody_damage_epoch === repair.custody_damage_epoch))
     && repairOutgoingCheck && repairOutgoingRelease && (repair.stage === "test" ? repairCheckMatchesStage : (events ?? []).some((event) =>
@@ -458,7 +463,7 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
     && repairOutgoingCheck.condition_pass && repairOutgoingCheck.transport_pass);
 
   const replacementIssuedReady = Boolean(repair.stage === "delivery" && latestPlan?.route === "replacement"
-    && repairFinanceReady && deliveryReceipt && replacementExecution
+    && repairFinanceReady && !openDeliveryIncident && deliveryReceipt && replacementExecution
     && replacementExecution.plan_id === latestPlan.id
     && deliveryReceipt.device_id === replacementExecution.replacement_device_id
     && replacementTestStock?.status === "issued"
@@ -719,12 +724,20 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
         canRelease={ctx.can(PERMISSIONS.REPAIR_QUALITY_RELEASE)} />}
 
       {repair.stage === "delivery" && latestPlan?.route === "replacement" && repairOutgoingCheck && <>
-        <DeliveryReceipt orgId={orgId} caseId={caseId} expectedVersion={repair.version}
+        {!activeDispatch && <DeliveryReceipt orgId={orgId} caseId={caseId} expectedVersion={repair.version}
           intendedRecipient={repairOutgoingCheck.intended_recipient}
           recipientRole={repairOutgoingCheck.recipient_role as "owner" | "authorized_representative" | "colleague"}
           authorityReference={repairOutgoingCheck.authority_reference} receipt={deliveryReceipt}
           canRecord={ctx.can(PERMISSIONS.REPAIR_DELIVERY_RECEIVE)}
-          ready={replacementDeliveryReady} deviceIdentifier={replacementDevice?.imei} route="replacement" />
+          ready={replacementDeliveryReady} deviceIdentifier={replacementDevice?.imei} route="replacement" />}
+        {(activeDispatch || !deliveryReceipt) && <DeliveryShipment
+          key={activeDispatch?.id ?? "replacement-dispatch"}
+          orgId={orgId} caseId={caseId} expectedVersion={repair.version}
+          intendedRecipient={repairOutgoingCheck.intended_recipient} dispatch={activeDispatch}
+          deviceIdentifier={replacementDevice?.imei}
+          received={Boolean(deliveryReceipt)} incidentOpen={openDeliveryIncident}
+          canDispatch={ctx.can(PERMISSIONS.REPAIR_DELIVERY_DISPATCH) && replacementTestPosition?.custodian_user_id === ctx.user.id}
+          canConfirm={ctx.can(PERMISSIONS.REPAIR_DELIVERY_CONFIRM_RECEIPT)} ready={replacementDeliveryReady} />}
         {warehousePlan ? <ReplacementWarehouseReceipt orgId={orgId} caseId={caseId} expectedVersion={repair.version}
           disposition={latestPlan.original_disposition ?? ""} canRecord={ctx.can(PERMISSIONS.REPAIR_REPLACEMENT_WAREHOUSE_RECEIVE)}
           ready={replacementIssuedReady} transfer={currentWarehouseTransfer} receipt={warehouseReceipt} /> :
@@ -766,7 +779,7 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
         <CardContent className="grid gap-2 text-sm">{(dispatchHistory ?? []).map((item) =>
           <div key={item.id} className="rounded-lg border border-border/60 p-3">
             {item.method === "post" ? "پست" : "پیک"} · {item.carrier} · {item.tracking_code} ·
-            {item.status === "returned" ? " بازگشت فیزیکی ثبت شد" : " در مسیر تحویل"}
+            {item.status === "returned" ? " بازگشت فیزیکی ثبت شد" : deliveryReceipt?.dispatch_id === item.id ? " دریافت مقصد تأیید شد" : " در مسیر تحویل"}
           </div>)}</CardContent>
       </Card>}
       {repair.stage === "delivery" && deliveryDispatch && <div id="delivery-incidents" className="scroll-mt-6"><DeliveryIncidentPanel

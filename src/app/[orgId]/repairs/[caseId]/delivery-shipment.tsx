@@ -13,8 +13,8 @@ type Dispatch = { id: string; method: string; carrier: string; destination_name:
   tracking_code: string; dispatch_reference: string; dispatched_at: string };
 
 export function DeliveryShipment({ orgId, caseId, expectedVersion, intendedRecipient,
-  dispatch, received, incidentOpen, canDispatch, canConfirm, ready }: {
-  orgId: string; caseId: string; expectedVersion: number; intendedRecipient: string;
+  dispatch, received, incidentOpen, canDispatch, canConfirm, ready, deviceIdentifier }: {
+  orgId: string; caseId: string; expectedVersion: number; intendedRecipient: string; deviceIdentifier?: string;
   dispatch: Dispatch | null;
   received: boolean; incidentOpen: boolean; canDispatch: boolean; canConfirm: boolean; ready: boolean;
 }) {
@@ -58,6 +58,8 @@ export function DeliveryShipment({ orgId, caseId, expectedVersion, intendedRecip
   }
 
   return <Card><CardHeader><CardTitle>تحویل با پست یا پیک</CardTitle></CardHeader><CardContent className="grid gap-4 text-sm">
+    {deviceIdentifier && <p>دستگاه جایگزین · IMEI: <bdi className="font-mono">{deviceIdentifier}</bdi></p>}
+    {!ready && !received && <p className="text-muted-foreground">ثبت ارسال یا دریافت پس از تکمیل کنترل‌های خروج، تسویه و رفع موانع باز پرونده فعال می‌شود.</p>}
     {!dispatch ? <>
       <p className="text-muted-foreground">خروج به حامل، دریافت مشتری نیست. گیرندهٔ مقصد مطابق کنترل خروج: {intendedRecipient}. پس از ارسال، کد رهگیری و وضعیت «در مسیر تحویل» نمایش داده می‌شود.</p>
       {canDispatch ? <form onSubmit={submitDispatch} className="grid gap-3 sm:grid-cols-2">
@@ -69,7 +71,7 @@ export function DeliveryShipment({ orgId, caseId, expectedVersion, intendedRecip
         <div className="grid gap-2 sm:col-span-2"><Label htmlFor="dispatch-evidence">مدرک خروج و تحویل به حامل</Label><Input id="dispatch-evidence" required maxLength={240} value={form.evidence} onChange={(event) => { key.current = null; setForm({ ...form, evidence: event.target.value }); }} /></div>
         {error && <p role="alert" className="text-destructive sm:col-span-2">{error}</p>}
         <div className="flex justify-end sm:col-span-2"><Button type="submit" disabled={pending || !ready}>{pending ? "در حال ثبت…" : "ثبت خروج به حامل"}</Button></div>
-      </form> : <p className="text-muted-foreground">ثبت ارسال به مجوز مستقل نیاز دارد.</p>}
+      </form> : <p className="text-muted-foreground">ثبت ارسال به مجوز مستقل و مسئولیت فعلی نگهداری دستگاه نیاز دارد.</p>}
     </> : <>
       <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
         <p className="font-medium">{received ? "دریافت مقصد تأیید شد" : incidentOpen ? "مسئلهٔ حمل باز؛ دریافت مقصد مسدود" : "در مسیر تحویل"}</p>
