@@ -97,7 +97,7 @@ export function StageTransition({ orgId, caseId, trackingCode, stage, expectedVe
     <Dialog open={selected !== null} onOpenChange={(open) => { if (!open && !pending) setSelected(null); }}>
       <DialogContent showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>{selected === "T10" || selected === "T11" ? `بازگشت به ${destination}؟` : `ارجاع به ${destination}؟`}</DialogTitle>
+          <DialogTitle>{selected === "T09" ? "بستن پرونده؟" : selected === "T10" || selected === "T11" ? `بازگشت به ${destination}؟` : `ارجاع به ${destination}؟`}</DialogTitle>
           <DialogDescription>پروندهٔ {trackingCode ?? "تعمیر"} از {origin} به {destination} منتقل می‌شود. سوابق و محل فیزیکی دستگاه حفظ می‌شوند.</DialogDescription>
         </DialogHeader>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}

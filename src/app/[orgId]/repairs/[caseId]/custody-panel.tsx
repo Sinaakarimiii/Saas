@@ -68,7 +68,7 @@ export function CustodyPanel({ orgId, caseId, expectedVersion, deviceId, receipt
   return <Card><CardHeader><CardTitle>موقعیت و جابه‌جایی فیزیکی دستگاه اصلی</CardTitle></CardHeader>
     <CardContent className="grid gap-4 text-sm">
       <p className="text-muted-foreground">مسئول رسیدگی پرونده از نگهدارندهٔ فیزیکی دستگاه مستقل است. حوالهٔ داخلی پس از رسید مقصد و خروج بیرونی پس از ثبت ارسال یا تحویل واقعی، موقعیت را به‌روز می‌کند.</p>
-      {position ? <p>محل تأییدشده: <strong>{position.location}</strong> · {position.holder_kind === "staff" ? "نگهدارندهٔ سازمانی" : position.holder_kind === "carrier" ? "حامل" : position.holder_kind === "scrapped" ? "وضعیت نهایی" : "گیرنده"}: <strong>{position.custodian_label}</strong> · {formatJalaliDateTime(position.confirmed_at)}</p>
+      {position ? <p>{position.holder_kind === "scrapped" ? "محل اجرای اسقاط:" : "محل تأییدشده:"} <strong>{position.location}</strong> · {position.holder_kind === "staff" ? "نگهدارندهٔ سازمانی" : position.holder_kind === "carrier" ? "حامل" : position.holder_kind === "scrapped" ? "وضعیت نهایی" : "گیرنده"}: <strong>{position.custodian_label}</strong> · {formatJalaliDateTime(position.confirmed_at)}</p>
         : <p className="text-amber-700 dark:text-amber-300">برای این دستگاه هنوز محل و نگهدارندهٔ تأییدشده ثبت نشده است.</p>}
       {position?.holder_kind === "recipient" && position.case_id !== caseId && <p className="text-amber-700 dark:text-amber-300">دستگاه در پروندهٔ قبلی به گیرنده تحویل شده است. دریافت فیزیکی این پرونده ثبت شده؛ پیش از جابه‌جایی داخلی، محل و نگهدارندهٔ فعلی را با مدرک تازه تأیید کنید.</p>}
       {needsNewBaseline && !closed && canBaseline && <form className="grid gap-3 rounded-xl border p-4 sm:grid-cols-2" onSubmit={(event) => {

@@ -564,8 +564,8 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
         <Card><CardHeader><CardTitle>دستگاه و تحویل‌گیرنده</CardTitle></CardHeader><CardContent className="grid gap-3 text-sm">
           {repair.received_at ? <>
             <div><p className="text-muted-foreground">دریافت فیزیکی</p><p>{formatJalaliDateTime(repair.received_at)} · {receiptNames[repair.receipt_method ?? ""] ?? repair.receipt_method}</p></div>
-            <div><p className="text-muted-foreground">محل تأییدشدهٔ دستگاه</p><p>{custodyPosition?.location ?? repair.device_location}</p></div>
-            <div><p className="text-muted-foreground">نگهدارندهٔ فیزیکی</p><p>{custodyPosition?.custodian_label ?? repair.device_custodian}</p></div>
+            <div><p className="text-muted-foreground">{custodyPosition?.holder_kind === "scrapped" ? "محل اجرای اسقاط" : "محل تأییدشدهٔ دستگاه"}</p><p>{custodyPosition?.location ?? repair.device_location}</p></div>
+            <div><p className="text-muted-foreground">{custodyPosition?.holder_kind === "scrapped" ? "تعیین تکلیف فیزیکی" : "نگهدارندهٔ فیزیکی"}</p><p>{custodyPosition?.custodian_label ?? repair.device_custodian}</p></div>
             <div><p className="text-muted-foreground">IMEI تأییدشده</p><p dir="ltr" className="text-right tabular-nums">{device?.imei ?? "هنوز تأیید نشده"}</p></div>
             {repair.imei_evidence && <div><p className="text-muted-foreground">عکس برچسب دستگاه</p>{evidenceLink?.signedUrl ? <a href={evidenceLink.signedUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4">مشاهدهٔ مدرک</a> : <p className="text-muted-foreground">مرجع قدیمی؛ فایل قابل مشاهده نیست</p>}</div>}
             {repair.duplicate_exception_reference && <div><p className="text-muted-foreground">استثنای پروندهٔ تکراری</p><p>{repair.duplicate_exception_reason} · {repair.duplicate_exception_reference}</p></div>}
