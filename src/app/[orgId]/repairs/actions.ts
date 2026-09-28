@@ -582,6 +582,10 @@ function mapDatabaseError(message: string): string {
   if (message.includes("REPLACEMENT_ORIGINAL_DISPOSITION_REQUIRED")) return "برای بستن پرونده باید تعیین تکلیف دستگاه اولیه تکمیل شود.";
   if (message.includes("REPLACEMENT_RECEIPT_MISMATCH")) return "اطلاعات رسید با دستگاه و گیرندهٔ تأییدشده تطابق ندارد.";
   if (message.includes("REPLACEMENT_STOCK_ALREADY_ISSUED")) return "این دستگاه جایگزین قبلاً از موجودی خارج شده است.";
+  if (message.includes("WAREHOUSE_ACCEPTED_TRANSFER_REQUIRED")) return "مسئول مقصد باید دریافت انتقال فعلی دستگاه اولیه را تأیید کند؛ موقعیت دستگاه نیز باید با آن رسید یکسان باشد.";
+  if (message.includes("WAREHOUSE_RECEIPT_ALREADY_CURRENT")) return "نتیجهٔ این انتقال قبلاً ثبت شده است؛ دریافت جدید به انتقال تازهٔ تأییدشده نیاز دارد.";
+  if (message.includes("WAREHOUSE_PLAN_REQUIRED")) return "برنامهٔ مصوب باید انتقال دستگاه اولیه برای بازسازی یا قطعات باشد.";
+  if (message.includes("INVALID_WAREHOUSE_RECEIPT")) return "رسید انتقال و شرح وضعیت دستگاه اولیه را کامل کنید.";
   if (message.includes("ORIGINAL_RETURN_PLAN_REQUIRED")) return "برنامهٔ مصوب این پرونده عودت دستگاه اولیه نیست؛ تعیین تکلیف دیگر هنوز تکمیل نشده است.";
   if (message.includes("ORIGINAL_RETURN_SEPARATE_EVIDENCE_REQUIRED")) return "برای دستگاه اولیه، رسید و مدرک جدا از دستگاه جایگزین ثبت کنید.";
   if (message.includes("REPLACEMENT_DELIVERY_RECEIPT_REQUIRED")) return "ابتدا تحویل واقعی دستگاه جایگزین و خروج موجودی آن باید ثبت شود.";
@@ -1520,6 +1524,28 @@ export async function recordReplacementOriginalReturnAction(raw: unknown): Promi
   if (error) return { error: mapDatabaseError(error.message) };
   if (!data || typeof data !== "object" || Array.isArray(data) || typeof data.caseId !== "string")
     return { error: "پاسخ عودت معتبر نبود. وضعیت پرونده را بررسی کنید." };
+  revalidatePath(`/${input.orgId}/repairs`);
+  revalidatePath(`/${input.orgId}/repairs/${input.caseId}`);
+  return { caseId: data.caseId };
+}
+
+const warehouseReceiptSchema = z.object({
+  orgId: uuid, caseId: uuid, transferId: uuid, expectedVersion: z.number().int().positive(), idempotencyKey: uuid,
+  conditionNote: z.string().trim().min(1).max(500),
+});
+export async function recordReplacementWarehouseReceiptAction(raw: unknown): Promise<ActionResult> {
+  const parsed = warehouseReceiptSchema.safeParse(raw);
+  if (!parsed.success) return { error: "رسید انتقال و شرح وضعیت دستگاه اولیه را کامل کنید." };
+  const input = parsed.data;
+  const supabase = await authorized(input.orgId, PERMISSIONS.REPAIR_REPLACEMENT_WAREHOUSE_RECEIVE);
+  if (!supabase) return { error: "مجوز ثبت دریافت انبار دستگاه اولیه را ندارید." };
+  const { data, error } = await supabase.rpc("record_replacement_warehouse_receipt", {
+    p_org_id: input.orgId, p_case_id: input.caseId, p_transfer_id: input.transferId,
+    p_expected_version: input.expectedVersion, p_idempotency_key: input.idempotencyKey, p_condition_note: input.conditionNote,
+  });
+  if (error) return { error: mapDatabaseError(error.message) };
+  if (!data || typeof data !== "object" || Array.isArray(data) || typeof data.caseId !== "string")
+    return { error: "پاسخ ثبت انبار معتبر نبود. پرونده را تازه کنید." };
   revalidatePath(`/${input.orgId}/repairs`);
   revalidatePath(`/${input.orgId}/repairs/${input.caseId}`);
   return { caseId: data.caseId };

@@ -2661,6 +2661,16 @@ export type Database = {
           },
         ]
       }
+      repair_replacement_warehouse_receipts: {
+        Row: { id: string; org_id: string; case_id: string; execution_id: string; original_device_id: string;
+          transfer_id: string; disposition: string; location: string; received_by: string;
+          receipt_reference: string; receipt_evidence: string; condition_note: string; recorded_at: string }
+        Insert: { id?: string; org_id: string; case_id: string; execution_id: string; original_device_id: string;
+          transfer_id: string; disposition: string; location: string; received_by: string;
+          receipt_reference: string; receipt_evidence: string; condition_note: string; recorded_at?: string }
+        Update: { condition_note?: string }
+        Relationships: []
+      }
       repair_replacement_original_returns: {
         Row: {
           id: string; org_id: string; case_id: string; execution_id: string; original_device_id: string;
@@ -3715,6 +3725,11 @@ export type Database = {
           p_recipient_name: string
           p_recipient_role: string
         }
+        Returns: Json
+      }
+      record_replacement_warehouse_receipt: {
+        Args: { p_org_id: string; p_case_id: string; p_transfer_id: string; p_expected_version: number;
+          p_idempotency_key: string; p_condition_note: string }
         Returns: Json
       }
       record_replacement_original_return: {
