@@ -56,7 +56,7 @@ This browser run covers the parts path at the desktop viewport with sequential a
 At 390 × 844, the final scrap summary and actor/evidence/approval text remain readable. Mobile navigation opens and closes. Document scroll width equals client width (390 px); the stage strip keeps its own existing horizontal scrolling. The temporary viewport override was reset afterward. Input forms and confirmation dialogs were exercised at the default desktop viewport; their mobile submission flow is not claimed here.
 
 ## Remaining checks
-- Browser path for issued replacement re-entry; additional incident variants and role boundaries beyond the completed post/courier damage runs.
+- Additional incident variants and role boundaries beyond the completed post/courier damage runs.
 - Simultaneous-session stale-version, concurrent approval and closure attempts.
 - Uploaded scrap documents/signature validation; currently evidence is a text reference.
 - Production rollout and full operational acceptance.
@@ -115,3 +115,21 @@ A separate synthetic local case starts at delivery version 21, with replacement 
 An independent database read confirmed `closed`, version 28, `refurbish_received`, second accepted transfer and current warehouse recipient/custodian agreement. The second warehouse audit event retains complete `previousReceipt` and `currentReceipt` JSON, referencing `REFURB-IN-001` and `REFURB-IN-002`; closure outcome is `replaced_original_refurbish_received`.
 
 No application changes were needed for this scenario. The browser run uses the existing production build at the default desktop viewport and does not establish simultaneous-session safety. Evidence is a synthetic text reference; the fixture's intake storage metadata is not a real uploaded document.
+
+
+## Issued replacement re-entry — browser validation
+
+The replacement issued in the completed refurbish scenario (`900000000000012`) was submitted through the normal new-case UI in the same synthetic organization. The prior repair case remains closed at version 28. This run uses the real application intake and Storage upload flow, rather than fixture inserts for the new case.
+
+| Check | Observed result |
+| --- | --- |
+| New request | Raw IMEI recorded without automatic verification. The new case has no physical receipt and cannot advance to diagnosis yet. |
+| Physical intake | Location, responsible recipient, items and label-matched IMEI entered; a locally generated PNG explicitly marked synthetic was selected through the browser file chooser and uploaded. Receipt/verified IMEI recorded at version 2. |
+| Custody boundary | Prior recipient custody remains visible with an explicit request for fresh location/custodian evidence. The UI does not silently replace the earlier recipient record at intake. |
+| Fresh custody baseline | Authorized staff select current custodian and record independent physical-return evidence; version 2 → 3. New location/custodian appear on the case. |
+| Diagnosis transition | Two-button confirmation with no additional note; case advances to diagnosis at version 4. |
+| Duplicate attempt | A second raw request for the same IMEI is allowed. Attempting physical intake with verified IMEI, uploaded synthetic label and no exception is rejected with the existing-open-case message. Diagnosis remains disabled. |
+
+Independent database reads confirmed that the new case's verified device ID equals the prior execution's replacement device ID; current staff custody belongs to the new case. Replacement stock remains `issued`, with the prior allocation case and issued receipt preserved; the prior receipt still identifies the same replacement and the previous case remains closed at version 28. The uploaded object has `image/png` metadata and 13,372 bytes. The rejected duplicate remains intake version 1 with no physical receipt or verified device, and exactly one open verified case exists for this device.
+
+No application changes were needed. This is sequential browser coverage of issued replacement re-entry after a closed prior case, actual synthetic image upload, custody baseline and duplicate rejection. It does not verify genuine device identity, signatures, cross-branch races, duplicate-exception approval, or available/allocated-stock rejection through the browser; existing SQL regression coverage remains separate.
