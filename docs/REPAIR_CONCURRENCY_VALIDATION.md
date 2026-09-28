@@ -1,4 +1,4 @@
-# Repair concurrency validation — 2026-09-28
+# Repair concurrency validation — 2026-09-28–29
 
 Stage 4: overlapping database transactions and exactly-once effects.
 
@@ -6,7 +6,7 @@ Stage 4: overlapping database transactions and exactly-once effects.
 
 `scripts/verify-repair-concurrency.py` creates two synthetic organizations/cases using the existing scrap SQL regression up to delivery, records synthetic scrap execution, and commits the fixtures into the isolated local database at `127.0.0.1:55422`. Three generated Auth identities have organization-specific fixture roles; no passwords/login sessions, real people, production records or payments are used. The approval identity differs from the scrap recorder.
 
-The runner holds transaction A open after its RPC succeeds. It observes `PgSleep` for A, starts connection B, and observes B's `wait_event_type = Lock` before A commits. Thus these are overlapping database transactions with measured contention, not sequential commands or two stale browser views. Both RPCs execute as `authenticated` with explicit per-transaction identity claims; administrative access is used only for fixture setup, lock observation and persisted-effect assertions.
+The runner holds transaction A open after its RPC succeeds. It observes A `idle in transaction`, starts connection B, verifies B's `wait_event_type = Lock` and that A is its blocking PID, then explicitly commits A. A fixed sleep is not used. Thus these are overlapping database transactions with measured contention, not sequential commands or two stale browser views. Both RPCs execute as `authenticated` with explicit per-transaction identity claims; administrative access is used only for fixture setup, lock observation and persisted-effect assertions.
 
 ## Verified scenarios
 
@@ -31,4 +31,28 @@ The script fixes the connection to local port 55422/database and user `postgres`
 
 ## Limits and next checks
 
-This verifies database RPC concurrency for the scrap approval and replacement closure paths. It does not verify simultaneous browser logins, session expiry, multi-server deployment, deadlock/load behavior across unrelated workflows, or concurrent receipt of the same IMEI into different cases. Earlier browser checks cover stale diagnosis save/finalization/T02 and sequential independent scrap identities. Concurrent IMEI intake is the next scenario; full operational acceptance remains pending.
+This verifies database RPC concurrency for the scrap approval and replacement closure paths. It does not verify simultaneous browser logins, session expiry, multi-server deployment, deadlock/load behavior across unrelated workflows, or broader inventory-allocation races. Earlier browser checks cover stale diagnosis save/finalization/T02 and sequential independent scrap identities. Concurrent IMEI intake is verified below; inventory-allocation races and full operational acceptance remain pending.
+
+
+## Concurrent IMEI intake — 2026-09-29
+
+`scripts/verify-repair-intake-concurrency.py` reuses the same measured-lock orchestration and the existing intake regression fixture setup. Two distinct raw requests share one organization and IMEI. Permitted receivers use different identities, evidence paths, request keys and physical-location labels (`Synthetic branch A/B`). This tests the organization-wide invariant across locations; it does not establish a separate branch data model or simultaneous browser login coverage.
+
+| Scenario | Result |
+| --- | --- |
+| IMEI absent from device registry | First intake holds its uncommitted device insertion. Second intake demonstrably waits on its transaction. After explicit commit, the second RPC rejects with `ACTIVE_REPAIR_CASE_EXISTS`. |
+| IMEI already in device registry, no open case | First intake holds the existing device lock. Second intake waits on the first transaction, then rejects with the same open-case error. |
+| Same intake identity/key/payload in two connections | Second RPC waits and returns the exact first response; no second receipt or version increment. |
+| Reason/reference without override permission | Losing receiver supplies synthetic exception reason/reference; RPC still rejects with `ACTIVE_REPAIR_CASE_EXISTS`. No exception is recorded. |
+
+After each race, assertions verify: one device row, one open verified case, one receive event, one IMEI verification event and one receive command receipt with the winning key. The accepted case is intake version 2 with physical receipt and verified identity; the other raw case stays version 1 without either. Exception count is zero.
+
+Run with the same local database/password setup:
+
+```sh
+python3 scripts/verify-repair-intake-concurrency.py
+```
+
+Fixtures and synthetic Storage metadata are committed for independent connections and retained for inspection; actual image bytes are not uploaded by these database tests. The earlier re-entry browser scenario separately covers real synthetic PNG upload. The helper's timed-hold prototype produced intake statement timeouts; the final runner uses an explicit transaction barrier and verifies the actual blocking PID. All three intake races and all four approval/closure regressions pass with this method. No application/schema change or confirmed product fix is claimed for the prototype timeout.
+
+Concurrent rollback/recovery, authorized duplicate exceptions under contention, replacement-stock allocation races, independent browser sessions and production acceptance remain outside this run. Next: competing replacement allocations against one stock device.

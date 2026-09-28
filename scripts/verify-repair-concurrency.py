@@ -85,11 +85,10 @@ set local statement_timeout='15s';
 set local role authenticated;
 do $$begin perform set_config('request.jwt.claim.sub','{actor}',true); end$$;
 select 'RESULT='||{expression}::text;
-{'select pg_sleep(5);' if hold else ''}
-commit;"""
+{'' if hold else 'commit;'}"""
 
 
-def wait_for(app, event_type=None, event=None):
+def wait_for(app, event_type=None, event=None, state=None):
     deadline = time.monotonic() + 4
     while time.monotonic() < deadline:
         filters = [f"application_name='{app}'"]
@@ -97,10 +96,55 @@ def wait_for(app, event_type=None, event=None):
             filters.append(f"wait_event_type='{event_type}'")
         if event:
             filters.append(f"wait_event='{event}'")
+        if state:
+            filters.append(f"state='{state}'")
         if query('select count(*) from pg_stat_activity where ' + ' and '.join(filters)) == '1':
             return
         time.sleep(0.1)
-    raise AssertionError(f'Expected wait not observed: {event_type or event}')
+    raise AssertionError(f'Expected wait not observed: {event_type or event or state}')
+
+
+def contend(actor_a, expression_a, actor_b, expression_b, expected_error=None):
+    tag = uuid.uuid4().hex
+    app_a, app_b = 'repair-race-a-' + tag, 'repair-race-b-' + tag
+    processes = []
+    try:
+        a = subprocess.Popen(CMD, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             text=True, env=dict(ENV, PGAPPNAME=app_a))
+        processes.append(a)
+        a.stdin.write(transaction(actor_a, expression_a, True))
+        a.stdin.flush()
+        # A is kept open until B demonstrably waits on its locks. No timed sleep
+        # is needed; idle-in-transaction proves the first RPC already completed.
+        wait_for(app_a, state='idle in transaction')
+        b = subprocess.Popen(CMD, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             text=True, env=dict(ENV, PGAPPNAME=app_b))
+        processes.append(b)
+        b.stdin.write(transaction(actor_b, expression_b, False))
+        b.stdin.close()
+        b.stdin = None
+        # Prove overlap/lock contention rather than relying on launch timing.
+        wait_for(app_b, event_type='Lock')
+        assert query(f"select count(*) from pg_stat_activity a cross join pg_stat_activity b where a.application_name='{app_a}' and b.application_name='{app_b}' and a.pid=any(pg_blocking_pids(b.pid));") == '1', 'Second connection is not blocked by the first'
+        a.stdin.write('commit;\n')
+        a.stdin.close()
+        a.stdin = None
+        out_a, err_a = a.communicate(timeout=20)
+        out_b, err_b = b.communicate(timeout=20)
+        assert a.returncode == 0, err_a
+        response_a = json.loads(next(line[7:] for line in out_a.splitlines() if line.startswith('RESULT=')))
+        if expected_error is None:
+            assert b.returncode == 0, err_b
+            response_b = json.loads(next(line[7:] for line in out_b.splitlines() if line.startswith('RESULT=')))
+            assert response_a == response_b, 'Concurrent retry response differs'
+        else:
+            assert b.returncode != 0 and expected_error in err_b, err_b
+        return response_a
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.terminate()
+                process.wait(timeout=5)
 
 
 def race(fixture, operation, same_key):
@@ -110,43 +154,10 @@ def race(fixture, operation, same_key):
     # Distinct-key races use different permitted identities. Same-key retries
     # use one identity because idempotency keys are scoped to the caller.
     actor_b = actor_a if same_key else (fixture['otherApprover'] if operation == 'approve' else fixture['approver'])
-    tag = uuid.uuid4().hex
-    app_a, app_b = 'repair-race-a-' + tag, 'repair-race-b-' + tag
-    processes = []
-    try:
-        a = subprocess.Popen(CMD, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                             text=True, env=dict(ENV, PGAPPNAME=app_a))
-        processes.append(a)
-        a.stdin.write(transaction(actor_a, rpc(fixture, operation, first_key), True))
-        a.stdin.close()
-        a.stdin = None
-        # PgSleep proves RPC A has completed while its transaction retains locks.
-        wait_for(app_a, event='PgSleep')
-        b = subprocess.Popen(CMD, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                             text=True, env=dict(ENV, PGAPPNAME=app_b))
-        processes.append(b)
-        b.stdin.write(transaction(actor_b, rpc(fixture, operation, second_key), False))
-        b.stdin.close()
-        b.stdin = None
-        # Prove overlap/lock contention rather than relying on launch timing.
-        wait_for(app_b, event_type='Lock')
-        out_a, err_a = a.communicate(timeout=20)
-        out_b, err_b = b.communicate(timeout=20)
-        assert a.returncode == 0, err_a
-        response_a = json.loads(next(line[7:] for line in out_a.splitlines() if line.startswith('RESULT=')))
-        if same_key:
-            assert b.returncode == 0, err_b
-            response_b = json.loads(next(line[7:] for line in out_b.splitlines() if line.startswith('RESULT=')))
-            assert response_a == response_b, 'Concurrent retry response differs'
-        else:
-            assert b.returncode != 0 and 'CASE_VERSION_CONFLICT' in err_b, err_b
-        print(f"PASS {operation}: observed lock wait; " +
-              ('same-key identical response' if same_key else 'competing key rejected'))
-    finally:
-        for process in processes:
-            if process.poll() is None:
-                process.terminate()
-                process.wait(timeout=5)
+    contend(actor_a, rpc(fixture, operation, first_key), actor_b,
+            rpc(fixture, operation, second_key), None if same_key else 'CASE_VERSION_CONFLICT')
+    print(f"PASS {operation}: observed lock wait; " +
+          ('same-key identical response' if same_key else 'competing key rejected'))
 
 
 def assert_effects(fixture):
