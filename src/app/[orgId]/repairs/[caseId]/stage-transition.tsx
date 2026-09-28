@@ -13,7 +13,7 @@ export function StageTransition({ orgId, caseId, trackingCode, stage, expectedVe
   canAdvance, canAdvanceDecision, canAdvanceRepair, canAdvanceReplacement, canAdvanceReturn, canAdvanceDelivery, canRetestAfterDamage, canClose, handoverReady, damageNeedsRetest, damageReturned, canReturn, intakeReady, diagnosisReady, decisionReady, deliveryReady, decisionRoute, deliveryRoute }: {
   orgId: string; caseId: string; trackingCode: string | null; stage: string; expectedVersion: number;
   canAdvance: boolean; canAdvanceDecision: boolean; canAdvanceRepair: boolean; canAdvanceReplacement: boolean; canAdvanceReturn: boolean; canAdvanceDelivery: boolean;
-  canReturn: boolean; intakeReady: boolean; diagnosisReady: boolean; decisionReady: boolean; deliveryReady: boolean; deliveryRoute: "return" | "repair" | null;
+  canReturn: boolean; intakeReady: boolean; diagnosisReady: boolean; decisionReady: boolean; deliveryReady: boolean; deliveryRoute: "return" | "repair" | "replacement" | null;
   canRetestAfterDamage: boolean; damageNeedsRetest: boolean; damageReturned: boolean;
   canClose: boolean; handoverReady: boolean;
   decisionRoute: "repair" | "replacement" | "return" | null;
@@ -70,7 +70,7 @@ export function StageTransition({ orgId, caseId, trackingCode, stage, expectedVe
           {!canReturn && <p className="text-sm text-muted-foreground">بازگشت به پذیرش به مجوز مستقل این انتقال نیاز دارد.</p>}
         </>}
         {stage === "test" && deliveryRoute && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
-          <div><p className="font-medium">گام رو به جلو: تحویل</p><p className="mt-1 text-sm text-muted-foreground">آخرین کنترل خروج باید آزاد شده باشد{deliveryRoute === "repair" ? " و مبلغ برنامه تسویه شده باشد" : ""}. این ارجاع، تحویل فیزیکی را ثبت نمی‌کند.</p></div>
+          <div><p className="font-medium">گام رو به جلو: تحویل</p><p className="mt-1 text-sm text-muted-foreground">آخرین کنترل خروج باید آزاد شده باشد{deliveryRoute !== "return" ? " و مبلغ برنامه تسویه شده باشد" : ""}. این ارجاع، تحویل فیزیکی را ثبت نمی‌کند.</p></div>
           {canAdvanceDelivery && <Button disabled={!deliveryReady} onClick={() => open("T08")}>ارجاع به تحویل</Button>}
           {!canAdvanceDelivery && <p className="text-sm text-muted-foreground">مجوز این انتقال را ندارید.</p>}
         </div>}

@@ -37,6 +37,7 @@ export const PERMISSIONS = {
   REPAIR_TRANSITION_TO_TEST_FROM_REPAIR: "case.transition.T06",
   REPAIR_FUNCTIONAL_TEST_RECORD: "repair.test.record",
   REPAIR_OUTGOING_QC_RECORD: "repair.outgoing_qc.record",
+  REPAIR_REPLACEMENT_OUTGOING_QC_RECORD: "repair.replacement.outgoing_qc.record",
   REPAIR_PAYMENT_RECORD: "repair.payment.record",
   REPAIR_PAYMENT_VERIFY: "repair.payment.verify",
   REPAIR_PAYMENT_CORRECT: "repair.payment.correct",

@@ -50,7 +50,7 @@ const eventNames: Record<string, string> = {
   return_authorized: "اطلاع‌رسانی و مجوز عودت ثبت شد",
   return_outgoing_checked: "کنترل خروج عودت ثبت شد", return_outgoing_released: "کنترل خروج عودت آزاد شد",
   functional_test_recorded: "آزمون عملکرد دستگاه ثبت شد", functional_test_released: "آزمون عملکرد دستگاه آزاد شد",
-  repair_outgoing_checked: "کنترل خروج تعمیر ثبت شد", repair_outgoing_released: "کنترل خروج تعمیر آزاد شد",
+  repair_outgoing_checked: "کنترل خروج دستگاه ثبت شد", repair_outgoing_released: "کنترل خروج دستگاه آزاد شد",
   payment_recorded: "سند پرداخت ثبت شد", payment_verified: "سند پرداخت تطبیق شد",
   payment_corrected: "سند پرداخت اشتباه اصلاح شد",
   payment_credit_requested: "درخواست انتقال اعتبار ثبت شد", payment_credit_approved: "انتقال اعتبار تأیید شد",
@@ -261,12 +261,24 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
       .eq("org_id", orgId).eq("case_id", caseId).order("completed_at", { ascending: false }).limit(1).maybeSingle()
     : { data: null, error: null };
   if (repairCompletionError) throw new Error("Could not load repair completion", { cause: repairCompletionError });
-  const { data: replacementExecution, error: replacementExecutionError } = repair.stage === "test" && latestPlan?.route === "replacement"
+  const { data: replacementExecution, error: replacementExecutionError } = ["test", "delivery"].includes(repair.stage) && latestPlan?.route === "replacement"
     ? await supabase.from("repair_replacement_executions")
       .select("id, plan_id, original_device_id, replacement_device_id, executed_at")
       .eq("org_id", orgId).eq("case_id", caseId).order("executed_at", { ascending: false }).limit(1).maybeSingle()
     : { data: null, error: null };
   if (replacementExecutionError) throw new Error("Could not load replacement execution", { cause: replacementExecutionError });
+  const [{ data: replacementTestPosition, error: replacementTestPositionError },
+    { data: replacementTestStock, error: replacementTestStockError }] = replacementExecution
+    ? await Promise.all([
+      supabase.from("repair_device_custody_positions")
+        .select("case_id, location, custodian_user_id, holder_kind")
+        .eq("org_id", orgId).eq("device_id", replacementExecution.replacement_device_id).maybeSingle(),
+      supabase.from("repair_replacement_stock")
+        .select("status, allocated_case_id, allocated_plan_id, location, custodian_user_id")
+        .eq("org_id", orgId).eq("device_id", replacementExecution.replacement_device_id).maybeSingle(),
+    ]) : [{ data: null, error: null }, { data: null, error: null }];
+  if (replacementTestPositionError || replacementTestStockError)
+    throw new Error("Could not load replacement stock position", { cause: replacementTestPositionError ?? replacementTestStockError });
   const [{ data: replacementTestTransfers, error: replacementTestTransferError },
     { data: replacementTestDiscrepancies, error: replacementTestDiscrepancyError }] = replacementExecution
     ? await Promise.all([
@@ -289,13 +301,16 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
     : { data: null, error: null };
   if (functionalReleaseError) throw new Error("Could not load functional test release", { cause: functionalReleaseError });
   const currentFunctionalRelease = Boolean(functionalRelease && functionalTest?.passed && latestPlan
-    && functionalTest.plan_id === latestPlan.id && functionalTest.completion_id === repairCompletion?.id
-    && functionalTest.device_id === repair.verified_device_id
+    && functionalTest.plan_id === latestPlan.id
+    && (latestPlan.route === "repair"
+      ? functionalTest.completion_id === repairCompletion?.id && functionalTest.device_id === repair.verified_device_id
+      : latestPlan.route === "replacement" && functionalTest.execution_id === replacementExecution?.id
+        && functionalTest.device_id === replacementExecution?.replacement_device_id)
     && functionalTest.custody_damage_epoch === repair.custody_damage_epoch
     && new Date(functionalTest.recorded_at).getTime() >= new Date(repair.stage_entered_at).getTime());
-  const { data: repairOutgoingCheck, error: repairOutgoingError } = ["test", "delivery"].includes(repair.stage) && latestPlan?.route === "repair"
+  const { data: repairOutgoingCheck, error: repairOutgoingError } = ["test", "delivery"].includes(repair.stage) && ["repair", "replacement"].includes(latestPlan?.route ?? "")
     ? await supabase.from("repair_outgoing_checks")
-      .select("id, revision, plan_id, functional_test_id, device_id, custody_damage_epoch, recorded_at, identity_pass, identity_evidence, items_pass, items_evidence, condition_pass, condition_evidence, transport_pass, transport_evidence, intended_recipient, recipient_role, authority_reference")
+      .select("id, revision, protocol_code, plan_id, functional_test_id, device_id, custody_damage_epoch, recorded_at, identity_pass, identity_evidence, items_pass, items_evidence, condition_pass, condition_evidence, transport_pass, transport_evidence, intended_recipient, recipient_role, authority_reference")
       .eq("org_id", orgId).eq("case_id", caseId).order("revision", { ascending: false }).limit(1).maybeSingle()
     : { data: null, error: null };
   if (repairOutgoingError) throw new Error("Could not load repair outgoing control", { cause: repairOutgoingError });
@@ -393,6 +408,28 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
     && (repair.stage === "test" ? custodyPosition.holder_kind === "staff" : ["staff", "carrier", "recipient"].includes(custodyPosition.holder_kind))
     && repairOutgoingCheck.plan_id === latestPlan?.id && repairOutgoingCheck.device_id === repair.verified_device_id
     && repairOutgoingCheck.custody_damage_epoch === repair.custody_damage_epoch && repairCheckMatchesStage
+    && repairOutgoingCheck.identity_pass && repairOutgoingCheck.items_pass
+    && repairOutgoingCheck.condition_pass && repairOutgoingCheck.transport_pass);
+  const replacementDeliveryReady = Boolean(repair.stage === "test" && repairFinanceReady
+    && latestPlan?.route === "replacement" && replacementExecution
+    && replacementExecution.plan_id === latestPlan.id
+    && replacementExecution.original_device_id === repair.verified_device_id
+    && replacementTestStock?.status === "allocated"
+    && replacementTestStock.allocated_case_id === caseId
+    && replacementTestStock.allocated_plan_id === latestPlan.id
+    && replacementTestPosition?.case_id === caseId && replacementTestPosition.holder_kind === "staff"
+    && replacementTestPosition.custodian_user_id === replacementTestStock.custodian_user_id
+    && replacementTestPosition.location === replacementTestStock.location
+    && custodyPosition?.case_id === caseId && custodyPosition.holder_kind === "staff"
+    && !repairCustodyBlocked && !replacementTestTransfers?.length && !replacementTestDiscrepancies?.length
+    && !(assignmentRequests ?? []).some((item) => item.status === "pending")
+    && !openDamage && currentFunctionalRelease
+    && repairOutgoingCheck && repairOutgoingRelease && repairCheckMatchesStage
+    && repairOutgoingCheck.protocol_code === "replacement_outgoing_v1"
+    && repairOutgoingCheck.plan_id === latestPlan.id
+    && repairOutgoingCheck.functional_test_id === functionalTest?.id
+    && repairOutgoingCheck.device_id === replacementExecution.replacement_device_id
+    && repairOutgoingCheck.custody_damage_epoch === repair.custody_damage_epoch
     && repairOutgoingCheck.identity_pass && repairOutgoingCheck.items_pass
     && repairOutgoingCheck.condition_pass && repairOutgoingCheck.transport_pass);
 
@@ -616,6 +653,23 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
         functionalReleased={currentFunctionalRelease} custodyBlocked={repairCustodyBlocked}
         canRecord={ctx.can(PERMISSIONS.REPAIR_OUTGOING_QC_RECORD)}
         canRelease={ctx.can(PERMISSIONS.REPAIR_QUALITY_RELEASE)} />}
+      {repair.stage === "test" && latestPlan?.route === "replacement" && <RepairOutgoingCheck
+        orgId={orgId} caseId={caseId} expectedVersion={repair.version} planId={latestPlan.id}
+        route="replacement" testId={functionalTest?.id ?? null}
+        deviceId={replacementExecution?.replacement_device_id ?? null}
+        damageEpoch={repair.custody_damage_epoch} stageEnteredAt={repair.stage_entered_at}
+        latest={repairOutgoingCheck} released={Boolean(repairOutgoingRelease)}
+        functionalReleased={currentFunctionalRelease}
+        custodyBlocked={Boolean(repairCustodyBlocked || replacementTestTransfers?.length || replacementTestDiscrepancies?.length)}
+        canRecord={ctx.can(PERMISSIONS.REPAIR_REPLACEMENT_OUTGOING_QC_RECORD)}
+        canRelease={ctx.can(PERMISSIONS.REPAIR_QUALITY_RELEASE)} />}
+
+      {repair.stage === "delivery" && latestPlan?.route === "replacement" && replacementExecution && <Card>
+        <CardHeader><CardTitle>تحویل دستگاه جایگزین</CardTitle></CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          کنترل خروج دستگاه جایگزین آزاد و پرونده به تحویل ارجاع شده است. دریافت واقعی گیرنده هنوز ثبت نشده و پرونده باز است.
+        </CardContent>
+      </Card>}
 
       {repair.stage === "delivery" && latestPlan?.route === "return" && outgoingCheck && !activeDispatch && <DeliveryReceipt
         orgId={orgId} caseId={caseId} expectedVersion={repair.version}
@@ -684,8 +738,8 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
                 : activeDispatch && deliveryReceipt.dispatch_id === activeDispatch.id
                   && activeDispatch.outgoing_check_id === outgoingCheck.id)))}
         damageNeedsRetest={damageNeedsRetest} damageReturned={damageReturned}
-        deliveryReady={latestPlan?.route === "repair" ? repairDeliveryReady : deliveryReady}
-        deliveryRoute={latestPlan?.route === "repair" ? "repair" : latestPlan?.route === "return" ? "return" : null}
+        deliveryReady={latestPlan?.route === "repair" ? repairDeliveryReady : latestPlan?.route === "replacement" ? replacementDeliveryReady : deliveryReady}
+        deliveryRoute={latestPlan?.route === "repair" ? "repair" : latestPlan?.route === "replacement" && repair.stage === "test" ? "replacement" : latestPlan?.route === "return" ? "return" : null}
         canReturn={ctx.can(PERMISSIONS.REPAIR_TRANSITION_TO_INTAKE)}
         diagnosisReady={diagnosisReady} decisionReady={decisionReady}
         decisionRoute={latestPlan?.route === "repair" || latestPlan?.route === "replacement" || latestPlan?.route === "return"

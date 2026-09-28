@@ -3386,6 +3386,10 @@ export type Database = {
         Args: { p_case_id: string; p_expected_version: number; p_idempotency_key: string; p_org_id: string }
         Returns: Json
       }
+      advance_replacement_case_to_delivery: {
+        Args: { p_case_id: string; p_expected_version: number; p_idempotency_key: string; p_org_id: string }
+        Returns: Json
+      }
       complete_repair_for_test: {
         Args: {
           p_case_id: string
@@ -3794,6 +3798,15 @@ export type Database = {
         Returns: Json
       }
       record_repair_outgoing_check: {
+        Args: {
+          p_org_id: string; p_case_id: string; p_expected_version: number; p_idempotency_key: string
+          p_identity_pass: boolean; p_identity_evidence: string; p_items_pass: boolean; p_items_evidence: string
+          p_condition_pass: boolean; p_condition_evidence: string; p_transport_pass: boolean; p_transport_evidence: string
+          p_intended_recipient: string; p_recipient_role: string; p_authority_reference: string | null
+        }
+        Returns: Json
+      }
+      record_replacement_outgoing_check: {
         Args: {
           p_org_id: string; p_case_id: string; p_expected_version: number; p_idempotency_key: string
           p_identity_pass: boolean; p_identity_evidence: string; p_items_pass: boolean; p_items_evidence: string

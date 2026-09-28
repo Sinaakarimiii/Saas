@@ -26,8 +26,9 @@ const initial: Record<Item, Answer> = {
 };
 
 export function RepairOutgoingCheck({ orgId, caseId, expectedVersion, planId, testId, deviceId,
-  damageEpoch, stageEnteredAt, latest, released, functionalReleased, custodyBlocked, canRecord, canRelease }: {
+  route = "repair", damageEpoch, stageEnteredAt, latest, released, functionalReleased, custodyBlocked, canRecord, canRelease }: {
   orgId: string; caseId: string; expectedVersion: number; planId: string; testId: string | null;
+  route?: "repair" | "replacement";
   deviceId: string | null; damageEpoch: number; stageEnteredAt: string; latest: Check | null;
   released: boolean; functionalReleased: boolean; custodyBlocked: boolean;
   canRecord: boolean; canRelease: boolean;
@@ -50,7 +51,7 @@ export function RepairOutgoingCheck({ orgId, caseId, expectedVersion, planId, te
     if (pending) return;
     setPending(true); setError(""); recordKey.current ??= crypto.randomUUID();
     try {
-      const result = await recordRepairOutgoingCheckAction({ orgId, caseId, expectedVersion,
+      const result = await recordRepairOutgoingCheckAction({ orgId, caseId, expectedVersion, route,
         idempotencyKey: recordKey.current,
         identityPass: answers.identity.pass, identityEvidence: answers.identity.evidence,
         itemsPass: answers.items.pass, itemsEvidence: answers.items.evidence,
@@ -73,7 +74,7 @@ export function RepairOutgoingCheck({ orgId, caseId, expectedVersion, planId, te
     } catch { setError("ارتباط برقرار نشد. پرونده را بررسی کنید و دوباره تلاش کنید."); }
     finally { setPending(false); }
   }
-  return <Card><CardHeader><CardTitle>کنترل خروج دستگاه تعمیرشده</CardTitle></CardHeader><CardContent className="grid gap-4 text-sm">
+  return <Card><CardHeader><CardTitle>کنترل خروج دستگاه {route === "replacement" ? "جایگزین" : "تعمیرشده"}</CardTitle></CardHeader><CardContent className="grid gap-4 text-sm">
     <p className="text-muted-foreground">پس از آزادسازی آزمون عملکرد، چهار کنترل خروج و گیرندهٔ موردنظر را ثبت کنید. نتیجهٔ ناموفق در سابقه می‌ماند و به کنترل تازه نیاز دارد. آزادسازی این کنترل هنوز انتقال به تحویل یا رسید فیزیکی نیست.</p>
     {!functionalReleased && <p className="text-muted-foreground">ابتدا آخرین آزمون عملکرد موفق را آزاد کنید.</p>}
     {custodyBlocked && <p role="alert" className="text-destructive">انتقال یا مغایرت باز دستگاه باید تعیین تکلیف شود.</p>}

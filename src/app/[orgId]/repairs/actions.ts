@@ -117,6 +117,7 @@ const functionalTestReleaseSchema = z.object({
 
 const repairOutgoingSchema = z.object({
   orgId: uuid, caseId: uuid, expectedVersion: z.number().int().positive(), idempotencyKey: uuid,
+  route: z.enum(["repair", "replacement"]).default("repair"),
   identityPass: z.boolean(), identityEvidence: z.string().trim().min(1).max(500),
   itemsPass: z.boolean(), itemsEvidence: z.string().trim().min(1).max(500),
   conditionPass: z.boolean(), conditionEvidence: z.string().trim().min(1).max(500),
@@ -136,9 +137,11 @@ export async function recordRepairOutgoingCheckAction(raw: unknown): Promise<Act
   const parsed = repairOutgoingSchema.safeParse(raw);
   if (!parsed.success) return { error: "نتیجه و شاهد چهار کنترل و اطلاعات گیرنده را بررسی کنید." };
   const input = parsed.data;
-  const supabase = await authorized(input.orgId, PERMISSIONS.REPAIR_OUTGOING_QC_RECORD);
-  if (!supabase) return { error: "مجوز ثبت کنترل خروج تعمیر را ندارید." };
-  const { data, error } = await supabase.rpc("record_repair_outgoing_check", {
+  const supabase = await authorized(input.orgId, input.route === "replacement"
+    ? PERMISSIONS.REPAIR_REPLACEMENT_OUTGOING_QC_RECORD : PERMISSIONS.REPAIR_OUTGOING_QC_RECORD);
+  if (!supabase) return { error: "مجوز ثبت کنترل خروج را ندارید." };
+  const { data, error } = await supabase.rpc(input.route === "replacement"
+    ? "record_replacement_outgoing_check" : "record_repair_outgoing_check", {
     p_org_id: input.orgId, p_case_id: input.caseId, p_expected_version: input.expectedVersion,
     p_idempotency_key: input.idempotencyKey,
     p_identity_pass: input.identityPass, p_identity_evidence: input.identityEvidence,
@@ -575,6 +578,10 @@ function mapDatabaseError(message: string): string {
   if (message.includes("VERIFIED_DEVICE_REQUIRED")) return "برای کنترل خروج، IMEI دستگاه باید با برچسب و مدرک تأیید شده باشد.";
   if (message.includes("RETURN_QC_REQUIRED")) return "آخرین کنترل خروج عودت باید برای همین دستگاه و برنامه، کامل و موفق باشد.";
   if (message.includes("REPAIR_PAYMENT_UNSETTLED")) return "مبلغ برنامهٔ تعمیر هنوز به‌طور کامل با مدارک مستقل تأیید نشده است.";
+  if (message.includes("REPLACEMENT_PAYMENT_UNSETTLED")) return "مبلغ برنامهٔ تعویض پس از انتقال اعتبار و استرداد وجه هنوز تسویه نشده است.";
+  if (message.includes("REPLACEMENT_FINANCIAL_BASIS_UNRESOLVED")) return "مبنای مالی برنامهٔ تعویض برای تحویل کامل نیست.";
+  if (message.includes("REPLACEMENT_DELIVERY_STAGE_REQUIRED")) return "ارجاع دستگاه جایگزین به تحویل فقط از مرحلهٔ تست مجاز است.";
+  if (message.includes("REPLACEMENT_OUTGOING_RELEASE_REQUIRED")) return "آخرین تست و کنترل خروج دستگاه جایگزین باید موفق و مستقل آزاد شده باشند.";
   if (message.includes("REPAIR_FINANCIAL_BASIS_UNRESOLVED")) return "مبنای مالی برنامهٔ تعمیر برای تحویل معتبر نیست.";
   if (message.includes("REPAIR_OUTGOING_RELEASE_REQUIRED")) return "آخرین تست و کنترل خروج تعمیر باید موفق و مستقل آزاد شده باشند.";
   if (message.includes("REPAIR_DELIVERY_TRANSITION_REQUIRED")) return "ابتدا انتقال معتبر پرونده از تست به تحویل را ثبت کنید.";
@@ -840,6 +847,7 @@ export async function transitionRepairCaseAction(raw: unknown): Promise<ActionRe
       .order("revision", { ascending: false }).limit(1).maybeSingle()
     : { data: null };
   const repairedDelivery = deliveryPlan?.route === "repair";
+  const replacementDelivery = deliveryPlan?.route === "replacement";
   const { data, error } = input.transitionCode === "T09" && repairedDelivery
     ? await supabase.rpc("close_repaired_case", {
       p_org_id: input.orgId, p_case_id: input.caseId,
@@ -847,6 +855,11 @@ export async function transitionRepairCaseAction(raw: unknown): Promise<ActionRe
     })
     : input.transitionCode === "T08" && repairedDelivery
     ? await supabase.rpc("advance_repaired_case_to_delivery", {
+      p_org_id: input.orgId, p_case_id: input.caseId,
+      p_expected_version: input.expectedVersion, p_idempotency_key: input.idempotencyKey,
+    })
+    : input.transitionCode === "T08" && replacementDelivery
+    ? await supabase.rpc("advance_replacement_case_to_delivery", {
       p_org_id: input.orgId, p_case_id: input.caseId,
       p_expected_version: input.expectedVersion, p_idempotency_key: input.idempotencyKey,
     })
