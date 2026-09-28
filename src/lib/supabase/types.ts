@@ -2661,6 +2661,22 @@ export type Database = {
           },
         ]
       }
+      repair_replacement_original_returns: {
+        Row: {
+          id: string; org_id: string; case_id: string; execution_id: string; original_device_id: string;
+          recipient_name: string; recipient_role: string; authority_reference: string | null;
+          receipt_reference: string; receipt_evidence: string; condition_note: string;
+          returned_by: string; returned_at: string;
+        }
+        Insert: {
+          id?: string; org_id: string; case_id: string; execution_id: string; original_device_id: string;
+          recipient_name: string; recipient_role: string; authority_reference?: string | null;
+          receipt_reference: string; receipt_evidence: string; condition_note: string;
+          returned_by: string; returned_at?: string;
+        }
+        Update: { condition_note?: string }
+        Relationships: []
+      }
       repair_replacement_stock: {
         Row: {
           issued_receipt_id: string | null
@@ -3699,6 +3715,15 @@ export type Database = {
           p_recipient_name: string
           p_recipient_role: string
         }
+        Returns: Json
+      }
+      record_replacement_original_return: {
+        Args: { p_org_id: string; p_case_id: string; p_expected_version: number; p_idempotency_key: string;
+          p_receipt_reference: string; p_receipt_evidence: string; p_condition_note: string }
+        Returns: Json
+      }
+      close_replacement_case: {
+        Args: { p_org_id: string; p_case_id: string; p_expected_version: number; p_idempotency_key: string }
         Returns: Json
       }
       record_replacement_delivery_receipt: {

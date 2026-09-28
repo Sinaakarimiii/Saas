@@ -24,7 +24,7 @@ export function StageTransition({ orgId, caseId, trackingCode, stage, expectedVe
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const destination = selected === "T01" ? "کارشناسی" : selected === "T02" ? "تصمیم و هماهنگی" : selected === "T03" ? "تعمیر" : selected === "T04" ? "تعویض" : selected === "T05" || selected === "T11" ? "تست و کنترل خروج" : selected === "T08" ? "تحویل" : selected === "T09" ? "بسته‌شده" : "پذیرش";
-  const origin = selected === "T01" ? "پذیرش" : selected === "T02" || selected === "T10" ? "کارشناسی" : selected === "T08" ? "تست و کنترل خروج" : selected === "T11" ? "تحویل" : "تصمیم و هماهنگی";
+  const origin = selected === "T01" ? "پذیرش" : selected === "T02" || selected === "T10" ? "کارشناسی" : selected === "T08" ? "تست و کنترل خروج" : selected === "T11" || selected === "T09" ? "تحویل" : "تصمیم و هماهنگی";
 
   async function confirm() {
     if (!selected || pending) return;

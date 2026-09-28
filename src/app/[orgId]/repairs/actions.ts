@@ -582,6 +582,9 @@ function mapDatabaseError(message: string): string {
   if (message.includes("REPLACEMENT_ORIGINAL_DISPOSITION_REQUIRED")) return "برای بستن پرونده باید تعیین تکلیف دستگاه اولیه تکمیل شود.";
   if (message.includes("REPLACEMENT_RECEIPT_MISMATCH")) return "اطلاعات رسید با دستگاه و گیرندهٔ تأییدشده تطابق ندارد.";
   if (message.includes("REPLACEMENT_STOCK_ALREADY_ISSUED")) return "این دستگاه جایگزین قبلاً از موجودی خارج شده است.";
+  if (message.includes("ORIGINAL_RETURN_PLAN_REQUIRED")) return "برنامهٔ مصوب این پرونده عودت دستگاه اولیه نیست؛ تعیین تکلیف دیگر هنوز تکمیل نشده است.";
+  if (message.includes("ORIGINAL_RETURN_SEPARATE_EVIDENCE_REQUIRED")) return "برای دستگاه اولیه، رسید و مدرک جدا از دستگاه جایگزین ثبت کنید.";
+  if (message.includes("REPLACEMENT_DELIVERY_RECEIPT_REQUIRED")) return "ابتدا تحویل واقعی دستگاه جایگزین و خروج موجودی آن باید ثبت شود.";
   if (message.includes("REPLACEMENT_PAYMENT_UNSETTLED")) return "مبلغ برنامهٔ تعویض پس از انتقال اعتبار و استرداد وجه هنوز تسویه نشده است.";
   if (message.includes("REPLACEMENT_FINANCIAL_BASIS_UNRESOLVED")) return "مبنای مالی برنامهٔ تعویض برای تحویل کامل نیست.";
   if (message.includes("REPLACEMENT_DELIVERY_STAGE_REQUIRED")) return "ارجاع دستگاه جایگزین به تحویل فقط از مرحلهٔ تست مجاز است.";
@@ -864,6 +867,11 @@ export async function transitionRepairCaseAction(raw: unknown): Promise<ActionRe
     })
     : input.transitionCode === "T08" && replacementDelivery
     ? await supabase.rpc("advance_replacement_case_to_delivery", {
+      p_org_id: input.orgId, p_case_id: input.caseId,
+      p_expected_version: input.expectedVersion, p_idempotency_key: input.idempotencyKey,
+    })
+    : input.transitionCode === "T09" && replacementDelivery
+    ? await supabase.rpc("close_replacement_case", {
       p_org_id: input.orgId, p_case_id: input.caseId,
       p_expected_version: input.expectedVersion, p_idempotency_key: input.idempotencyKey,
     })
@@ -1488,6 +1496,31 @@ export async function allocateRepairReplacementDeviceAction(raw: unknown): Promi
   if (error) return { error: mapDatabaseError(error.message) };
   if (!data || typeof data !== "object" || Array.isArray(data) || typeof data.caseId !== "string")
     return { error: "پاسخ تخصیص معتبر نبود. پرونده را تازه کنید." };
+  revalidatePath(`/${input.orgId}/repairs/${input.caseId}`);
+  return { caseId: data.caseId };
+}
+
+const originalReturnSchema = z.object({
+  orgId: uuid, caseId: uuid, expectedVersion: z.number().int().positive(), idempotencyKey: uuid,
+  receiptReference: z.string().trim().min(1).max(160), receiptEvidence: z.string().trim().min(1).max(240),
+  conditionNote: z.string().trim().min(1).max(500),
+});
+
+export async function recordReplacementOriginalReturnAction(raw: unknown): Promise<ActionResult> {
+  const parsed = originalReturnSchema.safeParse(raw);
+  if (!parsed.success) return { error: "مرجع رسید، مدرک و شرح وضعیت دستگاه اولیه را کامل کنید." };
+  const input = parsed.data;
+  const supabase = await authorized(input.orgId, PERMISSIONS.REPAIR_REPLACEMENT_ORIGINAL_RETURN);
+  if (!supabase) return { error: "مجوز مستقل عودت دستگاه اولیه را ندارید." };
+  const { data, error } = await supabase.rpc("record_replacement_original_return", {
+    p_org_id: input.orgId, p_case_id: input.caseId, p_expected_version: input.expectedVersion,
+    p_idempotency_key: input.idempotencyKey, p_receipt_reference: input.receiptReference,
+    p_receipt_evidence: input.receiptEvidence, p_condition_note: input.conditionNote,
+  });
+  if (error) return { error: mapDatabaseError(error.message) };
+  if (!data || typeof data !== "object" || Array.isArray(data) || typeof data.caseId !== "string")
+    return { error: "پاسخ عودت معتبر نبود. وضعیت پرونده را بررسی کنید." };
+  revalidatePath(`/${input.orgId}/repairs`);
   revalidatePath(`/${input.orgId}/repairs/${input.caseId}`);
   return { caseId: data.caseId };
 }
