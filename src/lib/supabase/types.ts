@@ -2661,6 +2661,15 @@ export type Database = {
           },
         ]
       }
+      repair_replacement_scraps: {
+        Row: { id: string; org_id: string; case_id: string; execution_id: string; original_device_id: string;
+          location: string; reference: string; evidence: string; note: string; recorded_by: string;
+          recorded_at: string; approved_by: string | null; approved_at: string | null }
+        Insert: { org_id: string; case_id: string; execution_id: string; original_device_id: string;
+          location: string; reference: string; evidence: string; note: string; recorded_by: string }
+        Update: { approved_by?: string; approved_at?: string }
+        Relationships: []
+      }
       repair_replacement_warehouse_receipts: {
         Row: { id: string; org_id: string; case_id: string; execution_id: string; original_device_id: string;
           transfer_id: string; disposition: string; location: string; received_by: string;
@@ -3755,6 +3764,15 @@ export type Database = {
           p_recipient_name: string
           p_recipient_role: string
         }
+        Returns: Json
+      }
+      record_replacement_scrap: {
+        Args: { p_org_id: string; p_case_id: string; p_expected_version: number; p_idempotency_key: string;
+          p_reference: string; p_evidence: string; p_note: string }
+        Returns: Json
+      }
+      approve_replacement_scrap: {
+        Args: { p_org_id: string; p_case_id: string; p_expected_version: number; p_idempotency_key: string; p_scrap_id: string }
         Returns: Json
       }
       record_replacement_warehouse_receipt: {

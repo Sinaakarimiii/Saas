@@ -26,6 +26,7 @@ import { CustodyPanel } from "./custody-panel";
 import { ReplacementStockPanel } from "./replacement-stock-panel";
 import { ReplacementCustodyPanel } from "./replacement-custody-panel";
 import { ReplacementExecutionPanel } from "./replacement-execution-panel";
+import { ReplacementScrap } from "./replacement-scrap";
 import { ReplacementWarehouseReceipt } from "./replacement-warehouse-receipt";
 import { ReplacementOriginalReturn } from "./replacement-original-return";
 import { DeliveryReceipt } from "./delivery-receipt";
@@ -355,6 +356,10 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
       .eq("org_id", orgId).eq("case_id", caseId).maybeSingle()
     : { data: null, error: null };
   if (warehouseReceiptError) throw new Error("Could not load original warehouse receipt", { cause: warehouseReceiptError });
+  const { data: scrap, error: scrapError } = ["delivery", "closed"].includes(repair.stage) && latestPlan?.route === "replacement"
+    ? await supabase.from("repair_replacement_scraps").select("*").eq("org_id", orgId).eq("case_id", caseId).maybeSingle()
+    : { data: null, error: null };
+  if (scrapError) throw new Error("Could not load original scrap", { cause: scrapError });
   const { data: deliveryDispatch, error: deliveryDispatchError } = ["delivery", "closed"].includes(repair.stage)
     ? await supabase.from("repair_delivery_dispatches")
       .select("id, method, carrier, destination_name, destination_role, authority_reference, destination_address, tracking_code, dispatch_reference, dispatched_at, device_id, outgoing_check_id, repair_outgoing_check_id, status")
@@ -486,6 +491,10 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
   const replacementCloseReady = Boolean(replacementIssuedReady && replacementExecution && (
     (originalReturn && originalReturn.execution_id === replacementExecution.id
       && originalReturn.original_device_id === repair.verified_device_id && custodyPosition?.holder_kind === "recipient")
+    || (scrap && latestPlan?.original_disposition === "scrap_proposed" && scrap.approved_at
+      && scrap.approved_by && scrap.approved_by !== scrap.recorded_by && scrap.execution_id === replacementExecution.id
+      && scrap.original_device_id === repair.verified_device_id && custodyPosition?.holder_kind === "scrapped"
+      && custodyPosition.external_reference === scrap.reference && custodyPosition.confirmed_at === scrap.recorded_at)
     || (warehouseReceipt && warehousePlan && warehouseReceipt.execution_id === replacementExecution.id
       && warehouseReceipt.original_device_id === repair.verified_device_id && custodyPosition?.holder_kind === "staff"
       && warehouseReceipt.received_by === custodyPosition.custodian_user_id && warehouseReceipt.location === custodyPosition.location
@@ -738,7 +747,13 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
           received={Boolean(deliveryReceipt)} incidentOpen={openDeliveryIncident}
           canDispatch={ctx.can(PERMISSIONS.REPAIR_DELIVERY_DISPATCH) && replacementTestPosition?.custodian_user_id === ctx.user.id}
           canConfirm={ctx.can(PERMISSIONS.REPAIR_DELIVERY_CONFIRM_RECEIPT)} ready={replacementDeliveryReady} />}
-        {warehousePlan ? <ReplacementWarehouseReceipt orgId={orgId} caseId={caseId} expectedVersion={repair.version}
+        {latestPlan.original_disposition === "scrap_proposed" ? <ReplacementScrap key={scrap?.id ?? "scrap-record"}
+          orgId={orgId} caseId={caseId} expectedVersion={repair.version} currentUserId={ctx.user.id} deviceIdentifier={device?.imei}
+          recordedByLabel={assignmentMembers.find((member) => member.id === scrap?.recorded_by)?.label}
+          approvedByLabel={assignmentMembers.find((member) => member.id === scrap?.approved_by)?.label}
+          canRecord={ctx.can(PERMISSIONS.REPAIR_REPLACEMENT_SCRAP_RECORD) && custodyPosition?.custodian_user_id === ctx.user.id}
+          canApprove={ctx.can(PERMISSIONS.REPAIR_REPLACEMENT_SCRAP_APPROVE)} ready={replacementIssuedReady} scrap={scrap} /> :
+        warehousePlan ? <ReplacementWarehouseReceipt orgId={orgId} caseId={caseId} expectedVersion={repair.version}
           disposition={latestPlan.original_disposition ?? ""} canRecord={ctx.can(PERMISSIONS.REPAIR_REPLACEMENT_WAREHOUSE_RECEIVE)}
           ready={replacementIssuedReady} transfer={currentWarehouseTransfer} receipt={warehouseReceipt} /> :
         <ReplacementOriginalReturn orgId={orgId} caseId={caseId} expectedVersion={repair.version}
@@ -793,6 +808,11 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
       {repair.stage === "closed" && deliveryReceipt && <Card><CardHeader><CardTitle>رسید تحویل نهایی</CardTitle></CardHeader>
         <CardContent className="text-sm">دستگاه به {deliveryReceipt.recipient_name} {deliveryReceipt.method === "in_person" ? "حضوری" : "در مقصد"} تحویل شد؛ مرجع دریافت: {deliveryReceipt.receipt_reference}.</CardContent></Card>}
 
+      {repair.stage === "closed" && scrap && <ReplacementScrap orgId={orgId} caseId={caseId}
+        expectedVersion={repair.version} currentUserId={ctx.user.id} deviceIdentifier={device?.imei}
+        recordedByLabel={assignmentMembers.find((member) => member.id === scrap.recorded_by)?.label}
+        approvedByLabel={assignmentMembers.find((member) => member.id === scrap.approved_by)?.label}
+        canRecord={false} canApprove={false} ready={false} scrap={scrap} />}
       {repair.stage === "closed" && warehouseReceipt && <ReplacementWarehouseReceipt orgId={orgId} caseId={caseId}
         expectedVersion={repair.version} disposition={latestPlan?.original_disposition ?? ""}
         canRecord={false} ready={false} transfer={null} receipt={warehouseReceipt} />}
@@ -845,6 +865,8 @@ export default async function RepairDetailPage({ params }: PageProps<"/[orgId]/r
                           ? "ارجاع کنترل خروج به تحویل" : event.details && typeof event.details === "object" && !Array.isArray(event.details) && event.details.transitionCode === "T09"
                             ? "تحویل تأیید و پرونده بسته شد" : event.details && typeof event.details === "object" && !Array.isArray(event.details) && event.details.transitionCode === "T11"
                             ? "بازگشت از تحویل به تست پس از آسیب" : "بازگشت از کارشناسی به پذیرش"
+              : event.details && typeof event.details === "object" && !Array.isArray(event.details) && event.details.scrapId
+                ? event.details.operation === "replacement.scrap.approve" ? "مدرک اجرای اسقاط توسط فرد دوم تأیید شد" : "اجرای اسقاط دستگاه اولیه ثبت شد"
               : event.details && typeof event.details === "object" && !Array.isArray(event.details) && event.details.warehouseReceiptId
                 ? event.details.disposition === "parts_received" ? "دستگاه اولیه برای داغی / قطعات در انبار دریافت شد" : "دستگاه اولیه برای بازسازی در انبار دریافت شد"
                 : event.details && typeof event.details === "object" && !Array.isArray(event.details) && event.details.originalReturnId

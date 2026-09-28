@@ -583,6 +583,14 @@ function mapDatabaseError(message: string): string {
   if (message.includes("REPLACEMENT_ORIGINAL_DISPOSITION_REQUIRED")) return "برای بستن پرونده باید تعیین تکلیف دستگاه اولیه تکمیل شود.";
   if (message.includes("REPLACEMENT_RECEIPT_MISMATCH")) return "اطلاعات رسید با دستگاه و گیرندهٔ تأییدشده تطابق ندارد.";
   if (message.includes("REPLACEMENT_STOCK_ALREADY_ISSUED")) return "این دستگاه جایگزین قبلاً از موجودی خارج شده است.";
+  if (message.includes("DEVICE_SCRAPPED")) return "این دستگاه اسقاط شده است و امکان دریافت یا جابه‌جایی دوباره ندارد.";
+  if (message.includes("SCRAP_SECOND_PERSON_REQUIRED")) return "ثبت‌کنندهٔ اسقاط نمی‌تواند آن را تأیید کند؛ فرد دیگری با مجوز تأیید لازم است.";
+  if (message.includes("SCRAP_APPROVAL_REQUIRED")) return "مدرک اجرای اسقاط باید توسط فرد دوم تأیید شود.";
+  if (message.includes("SCRAP_CUSTODIAN_REQUIRED")) return "فقط نگهدارندهٔ فعلی دستگاه اولیه می‌تواند اجرای اسقاط را ثبت کند.";
+  if (message.includes("SCRAP_PLAN_REQUIRED")) return "برنامهٔ جاری باید اسقاط دستگاه اولیه را پیش‌بینی کرده باشد.";
+  if (message.includes("SCRAP_EXECUTION_REQUIRED")) return "مدرک اجرای اسقاط با دستگاه و برنامهٔ فعلی تطابق ندارد؛ پرونده را تازه کنید.";
+  if (message.includes("INVALID_SCRAP_INPUT")) return "مرجع، مدرک اجرای اسقاط و شرح را کامل کنید.";
+  if (message.includes("SCRAP_ALREADY_APPROVED") || message.includes("SCRAP_ALREADY_RECORDED")) return "این عملیات اسقاط قبلاً ثبت شده است؛ پرونده را تازه کنید.";
   if (message.includes("WAREHOUSE_ACCEPTED_TRANSFER_REQUIRED")) return "مسئول مقصد باید دریافت انتقال فعلی دستگاه اولیه را تأیید کند؛ موقعیت دستگاه نیز باید با آن رسید یکسان باشد.";
   if (message.includes("WAREHOUSE_RECEIPT_ALREADY_CURRENT")) return "نتیجهٔ این انتقال قبلاً ثبت شده است؛ دریافت جدید به انتقال تازهٔ تأییدشده نیاز دارد.";
   if (message.includes("WAREHOUSE_PLAN_REQUIRED")) return "برنامهٔ مصوب باید انتقال دستگاه اولیه برای بازسازی یا قطعات باشد.";
@@ -1551,5 +1559,39 @@ export async function recordReplacementWarehouseReceiptAction(raw: unknown): Pro
     return { error: "پاسخ ثبت انبار معتبر نبود. پرونده را تازه کنید." };
   revalidatePath(`/${input.orgId}/repairs`);
   revalidatePath(`/${input.orgId}/repairs/${input.caseId}`);
+  return { caseId: data.caseId };
+}
+
+const scrapBaseSchema = z.object({ orgId: uuid, caseId: uuid, expectedVersion: z.number().int().positive(), idempotencyKey: uuid });
+const scrapRecordSchema = scrapBaseSchema.extend({ reference: z.string().trim().min(1).max(160),
+  evidence: z.string().trim().min(1).max(240), note: z.string().trim().min(1).max(500) });
+export async function recordReplacementScrapAction(raw: unknown): Promise<ActionResult> {
+  const parsed = scrapRecordSchema.safeParse(raw);
+  if (!parsed.success) return { error: "مرجع، مدرک اجرای اسقاط و شرح را کامل کنید." };
+  const input = parsed.data;
+  const supabase = await authorized(input.orgId, PERMISSIONS.REPAIR_REPLACEMENT_SCRAP_RECORD);
+  if (!supabase) return { error: "مجوز ثبت اجرای اسقاط را ندارید." };
+  const { data, error } = await supabase.rpc("record_replacement_scrap", {
+    p_org_id: input.orgId, p_case_id: input.caseId, p_expected_version: input.expectedVersion,
+    p_idempotency_key: input.idempotencyKey, p_reference: input.reference, p_evidence: input.evidence, p_note: input.note });
+  if (error) return { error: mapDatabaseError(error.message) };
+  if (!data || typeof data !== "object" || Array.isArray(data) || typeof data.caseId !== "string")
+    return { error: "پاسخ اسقاط معتبر نبود. پرونده را تازه کنید." };
+  revalidatePath(`/${input.orgId}/repairs`); revalidatePath(`/${input.orgId}/repairs/${input.caseId}`);
+  return { caseId: data.caseId };
+}
+export async function approveReplacementScrapAction(raw: unknown): Promise<ActionResult> {
+  const parsed = scrapBaseSchema.extend({ scrapId: uuid }).safeParse(raw);
+  if (!parsed.success) return { error: "شناسهٔ اسقاط معتبر نیست. پرونده را تازه کنید." };
+  const input = parsed.data;
+  const supabase = await authorized(input.orgId, PERMISSIONS.REPAIR_REPLACEMENT_SCRAP_APPROVE);
+  if (!supabase) return { error: "مجوز مستقل تأیید اسقاط را ندارید." };
+  const { data, error } = await supabase.rpc("approve_replacement_scrap", {
+    p_org_id: input.orgId, p_case_id: input.caseId, p_expected_version: input.expectedVersion,
+    p_idempotency_key: input.idempotencyKey, p_scrap_id: input.scrapId });
+  if (error) return { error: mapDatabaseError(error.message) };
+  if (!data || typeof data !== "object" || Array.isArray(data) || typeof data.caseId !== "string")
+    return { error: "پاسخ تأیید معتبر نبود. پرونده را تازه کنید." };
+  revalidatePath(`/${input.orgId}/repairs`); revalidatePath(`/${input.orgId}/repairs/${input.caseId}`);
   return { caseId: data.caseId };
 }
