@@ -86,4 +86,4 @@ The two-actor, two-key race now returns `REPLACEMENT_IMEI_EXISTS` for the loser.
 python3 scripts/verify-repair-stock-receipt-concurrency.py
 ```
 
-The broad legacy `verify-repair-diagnosis.sql` script passed its stock receipt/allocation block, then stopped at an unrelated final direct-close guard: it selects any delivery case from a database now containing many retained fixtures and encountered `REPLACEMENT_OUTGOING_RELEASE_REQUIRED`. This run does not establish that the entire broad script passes. A fresh isolated database or fixture-scoped selection is needed for a full rerun. Simultaneous independent browser sessions and production load remain pending.
+The broad `verify-repair-diagnosis.sql` script initially stopped at a direct-close guard because one test selected any delivery case from a database containing many retained fixtures. Its selection is now scoped to the script's own synthetic organization; the full script passes and rolls back its fixture after the rerun. Two simultaneous independent browser logins are checked in `REPAIR_BROWSER_VALIDATION.md`; overlapping browser clicks and production load remain pending.

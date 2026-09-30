@@ -150,4 +150,18 @@ The re-entry case was opened in two browser tabs under the same local Auth accou
 
 An independent database read confirmed decision version 7, exactly one diagnosis revision with the first tab's findings, one `diagnosis_saved`, one `diagnosis_finalized`, and one T02 event. Rejected stale commands produced no duplicate diagnosis/finalization/transition event. No application code changes were required.
 
-Independent-identity approval/closure races and overlapping database lock/replay behavior are now covered separately in `REPAIR_CONCURRENCY_VALIDATION.md`. Two open tabs sharing one login are not evidence for those scenarios; simultaneous independent browser logins remain pending.
+Independent-identity approval/closure races and overlapping database lock/replay behavior are covered separately in `REPAIR_CONCURRENCY_VALIDATION.md`. Two open tabs sharing one login are not evidence for those scenarios. The independent-browser-login check is recorded below.
+
+## Two simultaneous independent browser logins — 2026-10-01
+
+A fresh synthetic delivery-stage case, version 21, had replacement handover recorded and original disposition `scrap_proposed`. Two browser profiles were logged in at the same time: the first synthetic Auth identity in a Chrome Guest window, the second in a separate Codex in-app-browser session. These are different Auth users in the same synthetic organization; their display names happen to be identical, so the database actor IDs were checked independently. The earlier case preparation was SQL fixture setup, not browser coverage of intake or replacement execution.
+
+| Check | Observed result |
+| --- | --- |
+| First identity records actual scrap | The confirmation dialog requires no additional note. The case changes from version 21 to 22, shows the synthetic evidence/reference and terminal `scrapped` custody, and keeps closure disabled. The recorder's own approval control is absent. |
+| Second identity refreshes its already-open case view | The recorded scrap and evidence appear; independent approval control is available while closure is disabled. |
+| Second identity approves | Approval succeeds, version 22 → 23. The approval control disappears and the actor/time remain visible. |
+| First identity refreshes its still-open browser session | Closure becomes available. A two-button confirmation closes the case, version 23 → 24. |
+| Second identity refreshes | The closed stage and immutable scrap/approval/closure history appear. |
+
+An independent database read confirms `closed` version 24, one scrap row, one scrap-approval event and one T09 closure event. The recorder and approver IDs differ (`55c36744-…` and `4b7777ed-…`). Both browser sessions remained logged in during the sequence. This verifies cross-session state propagation after explicit refresh and role separation; it does **not** claim that browser clicks overlapped in time. Measured overlapping database transactions are covered in `REPAIR_CONCURRENCY_VALIDATION.md`. The evidence/reference was synthetic text, not an uploaded destruction document.

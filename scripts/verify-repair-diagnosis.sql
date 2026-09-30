@@ -929,7 +929,9 @@ reset role;
 do $$
 declare v_case_id uuid;
 begin
-  select id into v_case_id from public.repair_cases where stage='delivery' limit 1;
+  select c.id into v_case_id from public.repair_cases c
+    join diagnosis_fixture f on f.org_id=c.org_id
+    where c.stage='delivery' limit 1;
   begin
     update public.repair_cases set custody_damage_epoch=custody_damage_epoch+1 where id=v_case_id;
     update public.repair_cases set stage='closed' where id=v_case_id;
