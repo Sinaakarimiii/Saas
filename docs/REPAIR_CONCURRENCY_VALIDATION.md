@@ -31,7 +31,7 @@ The script fixes the connection to local port 55422/database and user `postgres`
 
 ## Limits and next checks
 
-This verifies database RPC concurrency for the scrap approval and replacement closure paths. It does not verify simultaneous browser logins, session expiry, multi-server deployment, deadlock/load behavior across unrelated workflows, or broader inventory-allocation races. Earlier browser checks cover stale diagnosis save/finalization/T02 and sequential independent scrap identities. Concurrent IMEI intake is verified below; inventory-allocation races and full operational acceptance remain pending.
+This verifies database RPC concurrency for the scrap approval and replacement closure paths. It does not verify simultaneous browser logins, session expiry, multi-server deployment, or deadlock/load behavior across unrelated workflows. Earlier browser checks cover stale diagnosis save/finalization/T02 and sequential independent scrap identities. Concurrent IMEI intake and competing replacement-stock allocation are verified below; full operational acceptance remains pending.
 
 
 ## Concurrent IMEI intake — 2026-09-29
@@ -55,4 +55,21 @@ python3 scripts/verify-repair-intake-concurrency.py
 
 Fixtures and synthetic Storage metadata are committed for independent connections and retained for inspection; actual image bytes are not uploaded by these database tests. The earlier re-entry browser scenario separately covers real synthetic PNG upload. The helper's timed-hold prototype produced intake statement timeouts; the final runner uses an explicit transaction barrier and verifies the actual blocking PID. All three intake races and all four approval/closure regressions pass with this method. No application/schema change or confirmed product fix is claimed for the prototype timeout.
 
-Concurrent rollback/recovery, authorized duplicate exceptions under contention, replacement-stock allocation races, independent browser sessions and production acceptance remain outside this run. Next: competing replacement allocations against one stock device.
+Concurrent rollback/recovery, authorized duplicate exceptions under contention, independent browser sessions and production acceptance remain outside this run. Replacement-stock allocation is verified below.
+
+## Competing replacement allocation — 2026-09-30
+
+`scripts/verify-repair-allocation-concurrency.py` prepares two separate synthetic cases in the replacement stage with approved plans for the same model, and one serial-numbered device in available stock. The cases, plans, and original IMEIs are distinct. Two authorized identities issue allocations for that single device on separate database connections. The runner verifies an actual lock wait and blocking PID before committing the first allocation.
+
+| Scenario | Result |
+| --- | --- |
+| Two cases, two actors and two keys allocate the same serial | First allocation succeeds; second waits for its stock-row lock, then receives `REPLACEMENT_STOCK_UNAVAILABLE`. The losing case remains at version 10. |
+| Exact same allocation command retried concurrently | Retry waits on the idempotency lock and returns the exact first response. |
+
+Persisted assertions show exactly one allocation row, replacement custody baseline, `replacement_allocated` event and command receipt; the winning case advances to version 11, and the stock row names only that case and plan. Both scenarios passed against the isolated local database. No schema or application-code change was needed.
+
+```sh
+python3 scripts/verify-repair-allocation-concurrency.py
+```
+
+The script requires the same local `PGPASSWORD` and retains synthetic fixtures for inspection. This proves the database RPC invariant under measured overlap. It does not cover stock receipt races, multiple distinct stock devices competing for one case, browser sessions, multi-server load, or rollback after the winning transaction. Next, verify the one-case/two-stock-device race and transaction rollback behavior, then complete independent browser-session and operational acceptance checks.
