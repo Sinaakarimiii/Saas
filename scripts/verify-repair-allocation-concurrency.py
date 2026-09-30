@@ -2,6 +2,7 @@
 """Prove one serial-numbered replacement cannot be allocated to two open cases."""
 import importlib.util
 import json
+import subprocess
 import sys
 import uuid
 from pathlib import Path
@@ -125,6 +126,84 @@ def assert_effects(f, winner_key):
     print('PASS persisted effects: one allocation/custody/event/receipt; losing case unchanged')
 
 
+def rollback_race(f, key_a, key_b):
+    tag = uuid.uuid4().hex
+    app_a, app_b = 'allocation-rollback-a-' + tag, 'allocation-rollback-b-' + tag
+    processes = []
+    try:
+        a = subprocess.Popen(shared.CMD, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, text=True, env=dict(shared.ENV, PGAPPNAME=app_a))
+        processes.append(a)
+        a.stdin.write(shared.transaction(f['owner'], allocation(f, 'A', key_a), True))
+        a.stdin.flush()
+        shared.wait_for(app_a, state='idle in transaction')
+        b = subprocess.Popen(shared.CMD, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, text=True, env=dict(shared.ENV, PGAPPNAME=app_b))
+        processes.append(b)
+        b.stdin.write(shared.transaction(f['clerk'], allocation(f, 'B', key_b), False))
+        b.stdin.close()
+        b.stdin = None
+        shared.wait_for(app_b, event_type='Lock')
+        blocked = query(f"""select count(*) from pg_stat_activity a cross join pg_stat_activity b
+          where a.application_name='{app_a}' and b.application_name='{app_b}'
+            and a.pid=any(pg_blocking_pids(b.pid));""")
+        assert blocked == '1', 'Waiting allocation is not blocked by the first transaction'
+        a.stdin.write('rollback;\n')
+        a.stdin.close()
+        a.stdin = None
+        out_a, err_a = a.communicate(timeout=20)
+        out_b, err_b = b.communicate(timeout=20)
+        assert a.returncode == 0, err_a
+        assert b.returncode == 0, err_b
+        first_response = json.loads(next(line[7:] for line in out_a.splitlines() if line.startswith('RESULT=')))
+        second_response = json.loads(next(line[7:] for line in out_b.splitlines() if line.startswith('RESULT=')))
+        assert first_response['caseId'] == f['caseA'], first_response
+        assert second_response['caseId'] == f['caseB'], second_response
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.terminate()
+                process.wait(timeout=5)
+
+
+def assert_rollback_effects(f, key_a, key_b):
+    state = json.loads(query(f"""select jsonb_build_object(
+     'caseA',a.version,'caseB',b.version,'status',s.status,
+     'allocatedCase',s.allocated_case_id,'allocatedPlan',s.allocated_plan_id,
+     'otherStock',(select status from public.repair_replacement_stock t
+       where t.org_id=a.org_id and t.device_id='{f['deviceB']}'),
+     'allocations',(select count(*) from public.repair_replacement_allocations x where x.org_id=a.org_id),
+     'custody',(select count(*) from public.repair_device_custody_positions x
+       where x.org_id=a.org_id and x.device_id=s.device_id),
+     'events',(select count(*) from public.repair_case_events x
+       where x.org_id=a.org_id and x.event_type='replacement_allocated'),
+     'commands',(select count(*) from private.repair_command_receipts x
+       where x.org_id=a.org_id and x.operation='replacement.allocate'),
+     'rolledBackReceipts',(select count(*) from private.repair_command_receipts x
+       where x.org_id=a.org_id and x.operation='replacement.allocate'
+         and x.idempotency_key='{key_a}'),
+     'winnerKey',(select idempotency_key from private.repair_command_receipts x
+       where x.org_id=a.org_id and x.operation='replacement.allocate'))
+     from public.repair_cases a cross join public.repair_cases b
+     join public.repair_replacement_stock s on s.org_id=a.org_id
+     where a.id='{f['caseA']}' and b.id='{f['caseB']}' and s.device_id='{f['device']}';"""))
+    assert state['caseA'] == 10 and state['caseB'] == 11, state
+    assert state['status'] == 'allocated' and state['allocatedCase'] == f['caseB'], state
+    assert state['allocatedPlan'] == f['planB'] and state['winnerKey'] == key_b, state
+    assert state['rolledBackReceipts'] == 0 and state['otherStock'] == 'available', state
+    assert all(state[name] == 1 for name in ('allocations', 'custody', 'events', 'commands')), state
+    retry = subprocess.run(shared.CMD,
+                           input=shared.transaction(f['owner'], allocation(f, 'A', key_a), False),
+                           text=True, capture_output=True, env=shared.ENV, timeout=20)
+    assert retry.returncode != 0 and 'REPLACEMENT_STOCK_UNAVAILABLE' in retry.stderr, retry.stderr
+    assert json.loads(query(f"""select jsonb_build_object(
+      'allocations',(select count(*) from public.repair_replacement_allocations where org_id='{f['org']}'),
+      'receipts',(select count(*) from private.repair_command_receipts
+        where org_id='{f['org']}' and operation='replacement.allocate'))""")) == {
+            'allocations': 1, 'receipts': 1}, 'Retry changed persisted allocation effects'
+    print('PASS rollback: waiting actor succeeds; first transaction and receipt disappear; stale retry rejected')
+
+
 if __name__ == '__main__':
     for same_key, label in ((False, 'competing-cases'), (True, 'same-command-retry')):
         f = setup(label)
@@ -143,4 +222,9 @@ if __name__ == '__main__':
             f['clerk'], allocation(f, 'A', key_b, f['deviceB']), 'CASE_VERSION_CONFLICT')
     print('PASS same-case-different-stock: verified case lock wait and stale-version rejection')
     assert_effects(f, key_a)
+    print('FIXTURE=' + json.dumps(f, sort_keys=True))
+    f = setup('rollback-recovery')
+    key_a, key_b = str(uuid.uuid4()), str(uuid.uuid4())
+    rollback_race(f, key_a, key_b)
+    assert_rollback_effects(f, key_a, key_b)
     print('FIXTURE=' + json.dumps(f, sort_keys=True))

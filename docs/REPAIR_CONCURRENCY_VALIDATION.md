@@ -1,4 +1,4 @@
-# Repair concurrency validation — 2026-09-28–29
+# Repair concurrency validation — 2026-09-28–30
 
 Stage 4: overlapping database transactions and exactly-once effects.
 
@@ -59,18 +59,19 @@ Concurrent rollback/recovery, authorized duplicate exceptions under contention, 
 
 ## Competing replacement allocation — 2026-09-30
 
-`scripts/verify-repair-allocation-concurrency.py` prepares two separate synthetic cases in the replacement stage with approved plans for the same model, and two serial-numbered devices in available stock. The cases, plans, and original IMEIs are distinct. Two authorized identities issue allocations on separate database connections. The runner verifies an actual lock wait and blocking PID before committing the first allocation.
+`scripts/verify-repair-allocation-concurrency.py` prepares two separate synthetic cases in the replacement stage with approved plans for the same model, and two serial-numbered devices in available stock. The cases, plans, and original IMEIs are distinct. Two authorized identities issue allocations on separate database connections. The runner verifies an actual lock wait and blocking PID before committing or rolling back the first allocation.
 
 | Scenario | Result |
 | --- | --- |
 | Two cases, two actors and two keys allocate the same serial | First allocation succeeds; second waits for its stock-row lock, then receives `REPLACEMENT_STOCK_UNAVAILABLE`. The losing case remains at version 10. |
 | Exact same allocation command retried concurrently | Retry waits on the idempotency lock and returns the exact first response. |
 | One case, two actors and two distinct stock devices | First allocation succeeds; second waits on the case-row lock, then receives `CASE_VERSION_CONFLICT`. The other stock device remains available. |
+| First transaction rolls back while another case waits for the same serial | Waiting request succeeds after rollback. The first case stays at version 10 and leaves no allocation, custody baseline, event or idempotency receipt. Retrying its original key after the second case wins returns `REPLACEMENT_STOCK_UNAVAILABLE`. |
 
-Persisted assertions show exactly one allocation row, replacement custody baseline, `replacement_allocated` event and command receipt; the winning case advances to version 11, and its stock row names only that case and plan. All three scenarios passed against the isolated local database. No schema or application-code change was needed.
+Persisted assertions show exactly one allocation row, replacement custody baseline, `replacement_allocated` event and command receipt; the winning case advances to version 11, and its stock row names only that case and plan. All four scenarios passed against the isolated local database. No schema or application-code change was needed.
 
 ```sh
 python3 scripts/verify-repair-allocation-concurrency.py
 ```
 
-The script requires the same local `PGPASSWORD` and retains synthetic fixtures for inspection. This proves the database RPC invariant under measured overlap. It does not cover stock receipt races, browser sessions, multi-server load, or rollback after the winning transaction. Next, verify transaction rollback/recovery, then complete independent browser-session and operational acceptance checks.
+The script requires the same local `PGPASSWORD` and retains synthetic fixtures for inspection. This proves the database RPC invariant under measured overlap, including rollback of the first allocation. It does not cover stock receipt races, browser sessions, or multi-server load. Next, verify independent browser sessions and complete operational acceptance checks.
