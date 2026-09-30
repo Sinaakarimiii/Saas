@@ -48,7 +48,7 @@ create temp table allocation_result(value jsonb);
 grant insert,select on allocation_result to authenticated;
 set local role authenticated;
 do $$
-declare f record; c jsonb; d jsonb; p jsonb; s jsonb; case_id uuid; path text;
+declare f record; c jsonb; d jsonb; p jsonb; s jsonb; s_b jsonb; case_id uuid; path text;
  case_a uuid; case_b uuid; plan_a uuid; plan_b uuid;
 begin
  select * into f from allocation_fixture;
@@ -80,8 +80,11 @@ begin
  end loop;
  s:=public.receive_repair_replacement_stock(f.org_id,'900000000000103','GPS new','Stock shelf',
   f.owner_id,'synthetic-stock-photo','allocation-stock-{suffix}',gen_random_uuid());
+ s_b:=public.receive_repair_replacement_stock(f.org_id,'900000000000104','GPS new','Stock shelf',
+  f.owner_id,'synthetic-stock-photo-b','allocation-stock-b-{suffix}',gen_random_uuid());
  insert into allocation_result values(jsonb_build_object('org',f.org_id,'caseA',case_a,
   'caseB',case_b,'planA',plan_a,'planB',plan_b,'device',s->>'deviceId',
+  'deviceB',s_b->>'deviceId',
   'owner',f.owner_id,'clerk',f.clerk_id));
 end $$;
 reset role;
@@ -91,15 +94,17 @@ commit;
     return json.loads(next(line[8:] for line in query(sql).splitlines() if line.startswith('FIXTURE=')))
 
 
-def allocation(f, side, key):
+def allocation(f, side, key, device=None):
     return (f"public.allocate_repair_replacement_device('{f['org']}','{f['case' + side]}',"
-            f"'{f['device']}','{f['plan' + side]}','race-{side}-{key}',10,'{key}')")
+            f"'{device or f['device']}','{f['plan' + side]}','race-{side}-{key}',10,'{key}')")
 
 
 def assert_effects(f, winner_key):
     state = json.loads(query(f"""select jsonb_build_object(
      'caseA',a.version,'caseB',b.version,'status',s.status,
      'allocatedCase',s.allocated_case_id,'allocatedPlan',s.allocated_plan_id,
+     'otherStock',(select status from public.repair_replacement_stock t
+       where t.org_id=a.org_id and t.device_id='{f['deviceB']}'),
      'allocations',(select count(*) from public.repair_replacement_allocations x where x.org_id=a.org_id),
      'custody',(select count(*) from public.repair_device_custody_positions x
        where x.org_id=a.org_id and x.device_id=s.device_id),
@@ -115,6 +120,7 @@ def assert_effects(f, winner_key):
     assert state['caseA'] == 11 and state['caseB'] == 10, state
     assert state['status'] == 'allocated' and state['allocatedCase'] == f['caseA'], state
     assert state['allocatedPlan'] == f['planA'] and state['winnerKey'] == winner_key, state
+    assert state['otherStock'] == 'available', state
     assert all(state[name] == 1 for name in ('allocations', 'custody', 'events', 'commands')), state
     print('PASS persisted effects: one allocation/custody/event/receipt; losing case unchanged')
 
@@ -131,3 +137,10 @@ if __name__ == '__main__':
         print(f'PASS {label}: verified lock wait and expected concurrent response')
         assert_effects(f, key_a)
         print('FIXTURE=' + json.dumps(f, sort_keys=True))
+    f = setup('same-case-different-stock')
+    key_a, key_b = str(uuid.uuid4()), str(uuid.uuid4())
+    contend(f['owner'], allocation(f, 'A', key_a),
+            f['clerk'], allocation(f, 'A', key_b, f['deviceB']), 'CASE_VERSION_CONFLICT')
+    print('PASS same-case-different-stock: verified case lock wait and stale-version rejection')
+    assert_effects(f, key_a)
+    print('FIXTURE=' + json.dumps(f, sort_keys=True))
