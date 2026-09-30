@@ -74,4 +74,16 @@ Persisted assertions show exactly one allocation row, replacement custody baseli
 python3 scripts/verify-repair-allocation-concurrency.py
 ```
 
-The script requires the same local `PGPASSWORD` and retains synthetic fixtures for inspection. This proves the database RPC invariant under measured overlap, including rollback of the first allocation. It does not cover stock receipt races, browser sessions, or multi-server load. Next, verify independent browser sessions and complete operational acceptance checks.
+The script requires the same local `PGPASSWORD` and retains synthetic fixtures for inspection. This proves the database RPC invariant under measured overlap, including rollback of the first allocation. Stock receipt races are checked below; browser sessions and multi-server load remain outside this run.
+
+## Competing replacement-stock receipts — 2026-10-01
+
+`scripts/verify-repair-stock-receipt-concurrency.py` uses two authenticated identities and separate PostgreSQL connections in the isolated local database. It confirms the second connection actually waits on the first transaction. Before the fix, two distinct receipt commands for the same organization/IMEI surfaced the raw `repair_devices_org_id_imei_key` unique-constraint error. Migration `20260930215823_repair_replacement_stock_concurrent_imei.sql` makes the insert conflict-safe and returns the existing `REPLACEMENT_IMEI_EXISTS` domain error after the wait. The UI already translates that error into a Persian message.
+
+The two-actor, two-key race now returns `REPLACEMENT_IMEI_EXISTS` for the loser. An identical concurrent retry returns the first response. Each scenario persists exactly one device, one stock row, and one command receipt, with the correct actor and key. Both pass after applying the migration locally; the four allocation races above also pass. The local Supabase security advisor reports no error-level issues. Run with `PGPASSWORD` configured for the isolated local database:
+
+```sh
+python3 scripts/verify-repair-stock-receipt-concurrency.py
+```
+
+The broad legacy `verify-repair-diagnosis.sql` script passed its stock receipt/allocation block, then stopped at an unrelated final direct-close guard: it selects any delivery case from a database now containing many retained fixtures and encountered `REPLACEMENT_OUTGOING_RELEASE_REQUIRED`. This run does not establish that the entire broad script passes. A fresh isolated database or fixture-scoped selection is needed for a full rerun. Simultaneous independent browser sessions and production load remain pending.
