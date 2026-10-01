@@ -87,3 +87,20 @@ python3 scripts/verify-repair-stock-receipt-concurrency.py
 ```
 
 The broad `verify-repair-diagnosis.sql` script initially stopped at a direct-close guard because one test selected any delivery case from a database containing many retained fixtures. Its selection is now scoped to the script's own synthetic organization; the full script passes and rolls back its fixture after the rerun. Two simultaneous independent browser logins are checked in `REPAIR_BROWSER_VALIDATION.md`; overlapping browser clicks and production load remain pending.
+
+## Bounded stock-receipt burst — 2026-10-01
+
+`scripts/verify-repair-stock-receipt-burst.py` launches 12 separate authenticated PostgreSQL clients against the isolated local database. A test-only advisory-lock gate holds all clients until each is visibly waiting on the gate, then releases them together. This provides a repeatable concurrent burst without relying on process-launch timing. Each run creates synthetic identities and one organization; its fixtures remain in the local database for inspection.
+
+| Scenario | Result |
+| --- | --- |
+| Same IMEI, 12 different request keys, two authorized receivers | One RPC succeeds and 11 return `REPLACEMENT_IMEI_EXISTS`; exactly one device, stock row and command receipt persist. |
+| Same IMEI, actor, payload and request key repeated 12 times | All 12 RPCs return the same response; exactly one device, stock row and command receipt persist. |
+
+Run with `PGPASSWORD` configured for the isolated local database:
+
+```sh
+python3 scripts/verify-repair-stock-receipt-burst.py
+```
+
+The runner fixes host/port/database to `127.0.0.1:55422/postgres`, caps the burst at 12 clients and sets a 20-second statement timeout. Its local completion times are diagnostics, not a capacity target or production latency measurement. This checks database correctness through independent connections; it does not exercise two Next.js servers, browser request delivery, a pooler, or a deployed environment. Those remain separate acceptance checks.
